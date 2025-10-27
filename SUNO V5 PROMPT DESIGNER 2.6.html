@@ -1,0 +1,2429 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suno v5 Prompt Designer</title>
+    <!-- Tailwind CSS for utility-first styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for a modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Styles for the Application */
+        :root {
+            --bg-color: #111827; /* Dunkelgrau/Blau */
+            --primary-color: #14b8a6; /* Teal */
+            --secondary-color: #374151; /* Grau */
+            --text-color: #e5e7eb; /* Helles Grau */
+            --border-color: #4b5563;
+            --neon-glow: 0 0 5px #14b8a6, 0 0 10px #14b8a6, 0 0 15px #14b8a6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .neon-text {
+            color: var(--primary-color);
+            text-shadow: var(--neon-glow);
+        }
+
+        .tab-button.active {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            box-shadow: var(--neon-glow);
+        }
+
+        .form-control, .btn {
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+        
+        .form-control {
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            color: var(--text-color); /* Ensure text is visible */
+        }
+         .form-control::placeholder {
+             color: #9ca3af; /* Gray-400 for placeholder */
+         }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.3);
+        }
+        
+        select.form-control {
+             color: var(--text-color); /* Ensure select text is visible */
+             background-color: var(--secondary-color); /* Ensure background */
+        }
+        select.form-control option {
+             background-color: var(--secondary-color); /* Ensure dropdown background */
+             color: var(--text-color);
+        }
+
+
+        /* Custom Slider Styles */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: var(--secondary-color);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(20, 184, 166, 0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+        
+        /* Character count color */
+        .char-count-ok { color: var(--text-color); }
+        .char-count-warning { color: #facc15; } /* yellow-400 */
+        .char-count-error { color: #f87171; } /* red-400 */
+        
+        /* Spinner for Gemini Button */
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Drag and Drop styles */
+        .dragging {
+            opacity: 0.5;
+            background: var(--secondary-color);
+        }
+        .drag-over {
+            border-top: 2px solid var(--primary-color);
+        }
+        /* Style for the reset buttons */
+        .reset-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            color: #9ca3af; /* gray-400 */
+            font-size: 1.25rem; /* text-xl */
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+            z-index: 10; /* Ensure it's clickable */
+        }
+        .reset-btn:hover {
+            color: #f87171; /* red-400 */
+        }
+        /* Adjust reset button position in footer */
+        footer .reset-btn {
+             top: 50%;
+             transform: translateY(-50%);
+             right: 0.5rem;
+        }
+         footer .relative > .reset-btn { /* Specificity for title reset */
+            right: calc(4rem + 0.5rem); /* Position left of the generate button */
+         }
+         
+         /* Command Palette Styles */
+        #command-palette-overlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 50;
+        }
+        #command-palette {
+            max-height: 70vh;
+        }
+        #command-list .command-item.selected {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+        }
+
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="app-container max-w-7xl mx-auto bg-gray-900 rounded-2xl shadow-2xl shadow-teal-500/10 overflow-hidden">
+        <!-- Header -->
+        <header class="app-header p-6 border-b border-gray-700 flex flex-wrap justify-between items-center gap-4">
+            <h1 class="app-title text-2xl md:text-3xl font-bold tracking-wider">
+                <span class="neon-text">SUNO V5</span> PROMPT DESIGNER
+            </h1>
+            <div class="version-info bg-gray-700 text-teal-400 text-xs font-mono py-1 px-3 rounded-full">v2.6.0 Berlin Edition</div>
+        </header>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav flex flex-wrap bg-gray-800 p-2 gap-2">
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="prompt-builder">
+                <span class="tab-icon mr-2">🎛️</span>
+                Prompt Builder
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="ai-refiner">
+                 <span class="tab-icon mr-2">✨</span>
+                 KI-Refiner
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="ai-inspiration">
+                <span class="tab-icon mr-2">💡</span>
+                AI Inspiration
+            </button>
+             <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="bandcamp-tags">
+                <span class="tab-icon mr-2">🏷️</span>
+                Bandcamp Tags
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="hardwax-style">
+                <span class="tab-icon mr-2">WAX</span>
+                Wax Style
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="song-structure">
+                <span class="tab-icon mr-2">📝</span>
+                Song Structure
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="exclude-styles">
+                <span class="tab-icon mr-2">🚫</span>
+                Ausschließen
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="analyse">
+                <span class="tab-icon mr-2">🔎</span>
+                Analyse
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="templates">
+                <span class="tab-icon mr-2">📋</span>
+                Templates
+            </button>
+            <button class="tab-button flex-grow text-center py-2 px-4 rounded-md transition duration-200 hover:bg-teal-500 hover:text-gray-900" data-tab="data-management">
+                <span class="tab-icon mr-2">⚙️</span>
+                Datenverwaltung
+            </button>
+        </nav>
+
+        <!-- Tab Content -->
+        <main class="tab-content p-6">
+            <!-- Tab 1: Prompt Builder -->
+            <div class="tab-panel" id="prompt-builder">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="control-group">
+                        <label for="genre-select" class="form-label block mb-2 font-medium">Genre</label>
+                        <select id="genre-select" class="form-control w-full p-2"></select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="mood-select" class="form-label block mb-2 font-medium">Mood</label>
+                        <select id="mood-select" class="form-control w-full p-2"></select>
+                    </div>
+
+                    <div class="control-group md:col-span-2">
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="main-prompt" class="form-label font-medium">Main Prompt</label>
+                            <button id="load-main-examples" class="text-xs bg-gray-700 hover:bg-teal-600 transition text-white py-1 px-3 rounded-full">💡 Beispiele</button>
+                        </div>
+                        <textarea id="main-prompt" class="form-control prompt-textarea w-full p-2 h-24" placeholder="Beschreibe deinen gewünschten Track..."></textarea>
+                    </div>
+
+                    <div class="control-group md:col-span-2">
+                         <div class="flex justify-between items-center mb-2">
+                            <label for="style-elements" class="form-label font-medium">Style Elements</label>
+                             <div class="flex items-center gap-2">
+                                <button id="gemini-suggest-styles" class="text-xs bg-purple-600 hover:bg-purple-500 transition text-white py-1 px-3 rounded-full flex items-center gap-1">✨ Stile vorschlagen</button>
+                                <button id="load-style-examples" class="text-xs bg-gray-700 hover:bg-teal-600 transition text-white py-1 px-3 rounded-full">💡 Beispiele</button>
+                            </div>
+                        </div>
+                        <textarea id="style-elements" class="form-control w-full p-2 h-20" placeholder="Zusätzliche Style-Elemente (Instrumentierung, Künstler, etc.)"></textarea>
+                    </div>
+
+                     <div class="control-group md:col-span-2">
+                         <div class="flex justify-between items-center mb-2">
+                            <label for="chord-progression" class="form-label font-medium">Chord Progression</label>
+                             <button id="gemini-suggest-chords" class="text-xs bg-purple-600 hover:bg-purple-500 transition text-white py-1 px-3 rounded-full flex items-center gap-1">✨ Vorschlagen</button>
+                        </div>
+                        <textarea id="chord-progression" class="form-control w-full p-2 h-20 font-mono" placeholder="z.B. Am-G-C-F, i-VII-VI-V..."></textarea>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="form-label block mb-2 font-medium">BPM: <span id="bpm-value">120</span></label>
+                        <input type="range" id="bpm-slider" min="60" max="200" value="120">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="key-select" class="form-label block mb-2 font-medium">Key Signature</label>
+                        <select id="key-select" class="form-control w-full p-2"></select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NEW Tab 2: AI Refiner -->
+             <div class="tab-panel hidden" id="ai-refiner">
+                <h3 class="text-xl font-semibold mb-2">KI-Refiner: Prompt mischen & kürzen</h3>
+                 <p class="text-gray-400 mb-4">Wähle eine Quelle aus und lass die KI die Elemente zu einem kohärenten, Längen-optimierten Prompt kombinieren.</p>
+
+                 <div class="mb-4">
+                     <label for="refiner-source-select" class="form-label block mb-2 font-medium">Quelle für die Verfeinerung:</label>
+                    <select id="refiner-source-select" class="form-control w-full p-2">
+                        <option value="builder">Aktueller Prompt Builder Inhalt</option>
+                        <option value="inspiration">Ergebnis aus "AI Inspiration"</option>
+                        <option value="bandcamp">Ergebnis aus "Bandcamp Tags"</option>
+                        <option value="hardwax">Ergebnis aus "Wax Style"</option>
+                    </select>
+                </div>
+
+                 <div class="mb-6">
+                    <button id="refine-prompt-button" class="btn bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-3 px-6 w-full md:w-auto flex items-center justify-center gap-2">
+                        ✨ Prompt verfeinern & kürzen
+                    </button>
+                </div>
+
+                 <div id="refiner-results" class="hidden space-y-4 bg-gray-800 p-4 rounded-lg relative">
+                    <button class="reset-btn" data-target="refiner-results">🗑️</button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Verfeinertes Genre</label>
+                             <div id="refined-genre" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Verfeinerte Stimmung</label>
+                             <div id="refined-mood" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                    </div>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Verfeinerte BPM</label>
+                             <div id="refined-bpm" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Verfeinerte Tonart</label>
+                             <div id="refined-key" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Verfeinerte Chords</label>
+                             <div id="refined-chords" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Verfeinerter Main Prompt</label>
+                        <div id="refined-main-prompt" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Verfeinerte Style Elements</label>
+                        <div id="refined-style-elements" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                     <div class="pt-2">
+                        <button id="apply-refined-button" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-2 px-4 w-full">
+                            Verfeinerten Prompt übernehmen
+                        </button>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- Tab 3: AI Inspiration -->
+            <div class="tab-panel hidden" id="ai-inspiration">
+                <h3 class="text-xl font-semibold mb-2">Inspiration aus Text generieren</h3>
+                <p class="text-gray-400 mb-4">Füge eine Beschreibung (z.B. von Bandcamp, aus einer Review etc.) ein, um daraus einen vollständigen Prompt zu generieren.</p>
+                <div class="control-group mb-4">
+                    <textarea id="inspiration-input" class="form-control w-full p-3 h-48" placeholder="Füge hier deinen Text ein..."></textarea>
+                </div>
+                <div class="mb-6">
+                    <button id="generate-inspiration-button" class="btn bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-3 px-6 w-full md:w-auto flex items-center justify-center gap-2">
+                        ✨ Prompt generieren
+                    </button>
+                </div>
+                <div id="inspiration-results" class="hidden space-y-4 bg-gray-800 p-4 rounded-lg relative">
+                     <button class="reset-btn" data-target="inspiration-results">🗑️</button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generiertes Genre</label>
+                             <div id="generated-genre" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Stimmung</label>
+                             <div id="generated-mood" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte BPM</label>
+                             <div id="generated-bpm" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Tonart</label>
+                             <div id="generated-key" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Chords</label>
+                             <div id="generated-chords" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Generierter Main Prompt</label>
+                        <div id="generated-main-prompt" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Generierte Style Elements</label>
+                        <div id="generated-style-elements" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div class="pt-2">
+                        <button id="apply-inspiration-button" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-2 px-4 w-full">
+                            Übernehmen & zum Builder
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Bandcamp Tags -->
+            <div class="tab-panel hidden" id="bandcamp-tags">
+                <h3 class="text-xl font-semibold mb-2">Prompt aus Bandcamp Tags</h3>
+                <p class="text-gray-400 mb-4">Füge eine Liste von Bandcamp Tags ein (Komma- oder Leerzeichen-getrennt), um daraus eine musikalische Idee zu formen.</p>
+                <div class="control-group mb-4">
+                    <textarea id="bandcamp-tags-input" class="form-control w-full p-3 h-24" placeholder="z.B. electronic experimental bass music uk dubstep..."></textarea>
+                </div>
+                <div class="mb-6">
+                    <button id="generate-from-tags-button" class="btn bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-3 px-6 w-full md:w-auto flex items-center justify-center gap-2">
+                        ✨ Prompt aus Tags generieren
+                    </button>
+                </div>
+                <div id="bandcamp-results" class="hidden space-y-4 bg-gray-800 p-4 rounded-lg relative">
+                    <button class="reset-btn" data-target="bandcamp-results">🗑️</button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generiertes Genre</label>
+                             <div id="generated-bc-genre" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Stimmung</label>
+                             <div id="generated-bc-mood" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte BPM</label>
+                             <div id="generated-bc-bpm" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Tonart</label>
+                             <div id="generated-bc-key" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Chords</label>
+                             <div id="generated-bc-chords" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Generierter Main Prompt</label>
+                        <div id="generated-bc-main-prompt" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Generierte Style Elements</label>
+                        <div id="generated-bc-style-elements" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div class="pt-2">
+                        <button id="apply-bandcamp-button" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-2 px-4 w-full">
+                            Übernehmen & zum Builder
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: Hard Wax Style -->
+            <div class="tab-panel hidden" id="hardwax-style">
+                <h3 class="text-xl font-semibold mb-2">Prompt im Hard Wax Stil</h3>
+                <p class="text-gray-400 mb-4">Gib ein paar Keywords ein oder wähle Tags aus, um einen prägnanten Prompt im Stil einer Hard Wax Plattenbeschreibung zu erhalten.</p>
+                 <div class="mb-4">
+                    <h4 class="font-semibold mb-3">Inspiration Tags</h4>
+                    <div class="tag-grid flex flex-wrap gap-2" id="hardwax-tags-container">
+                        <!-- Hard Wax tags will be injected here -->
+                    </div>
+                </div>
+                <div class="control-group mb-4">
+                    <textarea id="hardwax-keywords-input" class="form-control w-full p-3 h-24" placeholder="z.B. dubby, pounder, detroit, raw..."></textarea>
+                </div>
+                <div class="mb-6">
+                    <button id="generate-from-hardwax-button" class="btn bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-3 px-6 w-full md:w-auto flex items-center justify-center gap-2">
+                        ✨ Prompt generieren
+                    </button>
+                </div>
+                <div id="hardwax-results" class="hidden space-y-4 bg-gray-800 p-4 rounded-lg relative">
+                    <button class="reset-btn" data-target="hardwax-results">🗑️</button>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generiertes Genre</label>
+                             <div id="generated-hw-genre" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Stimmung</label>
+                             <div id="generated-hw-mood" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte BPM</label>
+                             <div id="generated-hw-bpm" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                        <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Tonart</label>
+                             <div id="generated-hw-key" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                         <div>
+                             <label class="block mb-2 font-medium text-teal-400">Generierte Chords</label>
+                             <div id="generated-hw-chords" class="bg-gray-900 p-3 rounded-md min-h-[50px] font-mono"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Generierter Main Prompt</label>
+                        <div id="generated-hw-main-prompt" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium text-teal-400">Generierte Style Elements</label>
+                        <div id="generated-hw-style-elements" class="bg-gray-900 p-3 rounded-md min-h-[50px]"></div>
+                    </div>
+                    <div class="pt-2">
+                        <button id="apply-hardwax-button" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-2 px-4 w-full">
+                            Übernehmen & zum Builder
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 6: Song Structure -->
+            <div class="tab-panel hidden" id="song-structure">
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="tag-section">
+                        <h3 class="font-semibold mb-3 text-lg">Song Structure</h3>
+                        <div class="tag-grid flex flex-wrap gap-2" id="structure-tags"></div>
+                    </div>
+                    <div class="tag-section">
+                        <h3 class="font-semibold mb-3 text-lg">Vocal Tags</h3>
+                        <div class="tag-grid flex flex-wrap gap-2" id="vocal-tags"></div>
+                    </div>
+                    <div class="tag-section">
+                        <h3 class="font-semibold mb-3 text-lg">Effect Tags</h3>
+                        <div class="tag-grid flex flex-wrap gap-2" id="effect-tags"></div>
+                    </div>
+                 </div>
+                 <div class="mt-6 p-4 bg-gray-800 rounded-lg">
+                    <h4 class="font-semibold mb-2">Selected Tags:</h4>
+                    <div class="selected-tags" id="selected-tags-display">No tags selected.</div>
+                 </div>
+            </div>
+
+            <!-- Tab 7: Exclude Styles -->
+            <div class="tab-panel hidden" id="exclude-styles">
+                 <h3 class="text-xl font-semibold mb-2">Negative Prompts / Stile ausschließen</h3>
+                <p class="text-gray-400 mb-4">Wähle Begriffe aus oder füge eigene hinzu, um sie von der Generierung auszuschließen. Kopiere die fertige Liste und füge sie in Suno ein.</p>
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-semibold mb-3">Gespeicherte Ausschlüsse</h4>
+                        <div class="tag-grid flex flex-wrap gap-2" id="default-exclude-tags">
+                            <!-- Tags will be injected here -->
+                        </div>
+                    </div>
+                     <div>
+                        <label for="custom-exclude-styles" class="form-label block mb-2 font-medium">Eigene Begriffe zur Datenbank hinzufügen (Komma-getrennt)</label>
+                        <div class="flex gap-2">
+                            <textarea id="custom-exclude-styles" class="form-control w-full p-2 h-20" placeholder="z.B. fröhlich, akustische gitarre..."></textarea>
+                            <button id="save-custom-exclude" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold px-4 self-start">Speichern</button>
+                        </div>
+                    </div>
+                    <div>
+                         <h4 class="font-semibold mb-2 text-teal-400">Finale Ausschluss-Liste</h4>
+                         <div id="final-exclude-list-container" class="bg-gray-800 p-4 rounded-lg flex items-center justify-between gap-4">
+                             <p id="final-exclude-list" class="flex-grow break-words text-gray-300"></p>
+                             <button id="copy-exclude-list" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-2 px-4 flex-shrink-0">📋 Kopieren</button>
+                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab 8: Analyse -->
+            <div class="tab-panel hidden" id="analyse">
+                <h3 class="text-xl font-semibold mb-4">Prompt dekonstruieren</h3>
+                <p class="text-gray-400 mb-4">Füge hier einen kompletten Suno-Prompt ein, um ihn in seine Bestandteile zu zerlegen. Die erkannten Elemente werden automatisch in den Prompt Builder übernommen.</p>
+                <div class="control-group">
+                    <textarea id="analyse-input" class="form-control w-full p-3 h-40" placeholder="Hier deinen Prompt einfügen..."></textarea>
+                </div>
+                <div class="mt-4">
+                    <button id="analyse-button" class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-3 px-6 w-full md:w-auto">
+                        🔎 Prompt analysieren
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 9: Templates -->
+            <div class="tab-panel hidden" id="templates">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="template-grid">
+                    <!-- Templates will be injected here -->
+                </div>
+            </div>
+
+            <!-- Tab 10: Data Management -->
+            <div class="tab-panel hidden" id="data-management">
+                <h3 class="text-xl font-semibold mb-2">Datenverwaltung & Backup</h3>
+                <p class="text-gray-400 mb-6">Sichere deine persönliche Datenbank als JSON-Datei, importiere sie oder setze die App zurück.</p>
+                <div class="space-y-4 max-w-md mb-8">
+                    <button id="export-data-button" class="btn bg-blue-600 hover:bg-blue-500 transition text-white font-bold py-3 px-6 w-full">Daten exportieren (JSON)</button>
+                    <button id="import-data-button" class="btn bg-green-600 hover:bg-green-500 transition text-white font-bold py-3 px-6 w-full">Daten importieren (JSON)</button>
+                    <input type="file" id="import-file-input" class="hidden" accept=".json">
+                    <button id="reset-app-button" class="btn bg-red-600 hover:bg-red-500 transition text-white font-bold py-3 px-6 w-full">App zurücksetzen</button>
+                </div>
+                
+                <h3 class="text-xl font-semibold mb-2 border-t border-gray-700 pt-6">Datenbank-Editor</h3>
+                <p class="text-gray-400 mb-6">Verwalte deine persönlichen Listen direkt. Änderungen werden sofort übernommen. Einträge per Drag & Drop sortieren.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="data-editor-container">
+                    <!-- Data editor lists will be injected here -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Final Output Section -->
+        <footer class="output-section bg-gray-900/50 p-6 border-t border-gray-700">
+            <div class="output-header flex flex-wrap justify-between items-center gap-4 mb-4">
+                <h2 class="text-xl font-bold">Final Output</h2>
+                <button class="btn bg-gray-700 hover:bg-gray-600 transition text-white font-bold py-2 px-4" id="random-prompt">🎲 Randomize</button>
+            </div>
+
+            <div class="output-content bg-gray-800 p-4 rounded-lg">
+                <div class="prompt-display">
+                    <div class="prompt-section mb-4 relative">
+                        <h4 class="font-semibold text-teal-400 mb-2">Complete Prompt</h4>
+                        <div class="prompt-output bg-gray-900 p-3 rounded-md min-h-[60px] whitespace-pre-wrap break-words" id="complete-prompt">Dein Prompt wird hier angezeigt...</div>
+                         <!-- Vibe Check -->
+                         <div class="mt-4">
+                             <button id="vibe-check-button" class="btn bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-2 px-4 w-full md:w-auto flex items-center justify-center gap-2">
+                                 ✨ Vibe Check
+                             </button>
+                             <div id="vibe-check-result-wrapper" class="relative">
+                                 <div id="vibe-check-result" class="mt-2 text-sm text-gray-400 italic bg-gray-900 p-2 rounded min-h-[30px]"></div>
+                                 <button class="reset-btn hidden" data-target="vibe-check-result">🗑️</button>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-summary mb-4">
+                        <h4 class="font-semibold text-teal-400 mb-2">Settings Summary</h4>
+                        <div id="settings-summary" class="bg-gray-900 p-3 rounded-md font-mono text-sm"></div>
+                    </div>
+                </div>
+
+                <div class="copy-buttons flex flex-wrap gap-3">
+                    <button class="btn bg-teal-600 hover:bg-teal-500 transition text-white font-bold py-2 px-4 flex-grow" id="copy-complete">📋 Copy Prompt</button>
+                    <button class="btn bg-green-600 hover:bg-green-500 transition text-white font-bold py-2 px-4 flex-grow" id="generate-suno">
+                        🎵 Generate with Suno
+                    </button>
+                </div>
+
+                <div class="mt-6 border-t border-gray-700 pt-4 space-y-4">
+                    <div>
+                        <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+                             <h4 class="font-semibold text-teal-400">Song Title Generator</h4>
+                             <div class="flex items-center gap-2 text-sm">
+                                 <label for="title-word-count-slider">Wörter:</label>
+                                 <span id="title-word-count-value">3</span>
+                                 <input id="title-word-count-slider" type="range" min="1" max="5" value="3" class="w-24">
+                             </div>
+                        </div>
+                        <div class="flex gap-2 relative">
+                            <div id="generated-song-title" class="bg-gray-900 p-3 rounded-md flex-grow font-mono italic text-gray-400">Dein Songtitel...</div>
+                            <button id="generate-song-title-button" class="btn bg-purple-600 hover:bg-purple-500 transition text-white font-bold py-2 px-4 flex-shrink-0">✨ Generieren</button>
+                            <button class="reset-btn hidden" data-target="generated-song-title">🗑️</button>
+                        </div>
+                    </div>
+                    <div>
+                        <button id="save-as-template-button" class="btn bg-gray-700 hover:bg-gray-600 transition text-white font-bold py-2 px-4 w-full">💾 Aktuellen Prompt als Template speichern</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="character-count text-right mt-2 text-sm font-mono">
+                Characters: <span id="char-count" class="char-count-ok">0</span>/1000
+            </div>
+        </footer>
+    </div>
+
+    <!-- Example Modal -->
+    <div id="example-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 z-50">
+        <div id="modal-content" class="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div class="p-6 sticky top-0 bg-gray-800">
+                <div class="flex justify-between items-center">
+                    <h3 id="modal-title" class="text-xl font-bold text-teal-400">Beispiele</h3>
+                    <button id="close-modal" class="text-2xl hover:text-teal-400 transition">&times;</button>
+                </div>
+            </div>
+            <div id="modal-body" class="p-6 pt-0">
+                <!-- Example content will be injected here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Command Palette -->
+    <div id="command-palette-overlay" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-start pt-20 z-50 hidden">
+        <div id="command-palette" class="bg-gray-800 rounded-lg shadow-xl w-full max-w-xl max-h-[70vh] flex flex-col">
+            <input type="text" id="command-input" class="form-control w-full p-3 text-lg bg-gray-700 border-none rounded-t-lg focus:ring-0" placeholder="Befehl suchen...">
+            <ul id="command-list" class="overflow-y-auto p-2">
+                <!-- Commands will be injected here -->
+            </ul>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DATA ---
+            let data = {
+                genres: ["Deep House", "Techno", "Ambient", "Drum and Bass", "Synthwave", "Lo-fi Hip Hop", "Orchestral", "Industrial Metal", "Jazz", "Berlin School", "Jungle", "Soundsystem Music", "Leftfield", "Dubstep", "Detroit House"],
+                moods: ["Energetic", "Melancholic", "Uplifting", "Dark", "Relaxing", "Hypnotic", "Cinematic", "Aggressive", "Dreamy", "Meditative", "Raw", "Soulful"],
+                 keys: [
+                    "Open Key", "C Major", "C Minor", "G Major", "G Minor", "D Major", "D Minor", "A Major", "A Minor", "E Major", "E Minor", "B Major", "B Minor", 
+                    "F# Major / Gb Major", "F# Minor / Gb Minor", "C# Major / Db Major", "C# Minor / Db Minor", "G# Minor / Ab Minor", "Ab Major", "Eb Major", "Eb Minor", "Bb Major", "Bb Minor", "F Major", "F Minor",
+                    "8B - C Major", "5B - G Major", "12B - D Major", "7B - A Major", "2B - E Major", "9B - B Major", "4B - F# Major / Gb Major", "11B - C# Major / Db Major", "6B - Ab Major", "1B - Eb Major", "8B - Bb Major", "3B - F Major",
+                    "5A - A Minor", "12A - E Minor", "7A - B Minor", "2A - F# Minor / Gb Minor", "9A - C# Minor / Db Minor", "4A - G# Minor / Ab Minor", "11A - Eb Minor", "6A - Bb Minor", "1A - F Minor", "8A - C Minor", "3A - G Minor", "10A - D Minor"
+                ],
+                tags: {
+                    structure: ["intro", "verse", "chorus", "bridge", "solo", "outro", "buildup", "drop", "breakdown"],
+                    vocals: ["male vocals", "female vocals", "robotic voice", "choir", "whispering", "spoken word", "background vocals", "vocoder"],
+                    effects: ["reverb", "delay", "distortion", "phaser", "flanger", "arpeggiator", "sidechain compression", "filtered", "dubwise spatial science"]
+                },
+                templates: [
+                    { name: '90s Berlin Club', genre: 'Techno', mood: 'Hypnotic', prompt: 'Raw, hypnotic techno with a driving 909 kick, inspired by the Berlin club scene. MFB Tanzbär on drums.', style: '135 bpm, Roland TB-303 bassline, atmospheric pads', chords: '' },
+                    { name: 'Ambient Journey', genre: 'Ambient', mood: 'Dreamy', prompt: 'A slow, evolving ambient piece with lush pads and gentle textures.', style: '60 bpm, field recordings, granular synthesis, E-Minor', chords: 'Em-C-G-D' },
+                    { name: 'Synthwave Drive', genre: 'Synthwave', mood: 'Uplifting', prompt: 'An 80s inspired synthwave track for a night drive.', style: '110 bpm, gated reverb on snare, Korg Volca Keys lead melody, arpeggiated bass', chords: 'Cm-G#-Eb-Bb' },
+                    { name: 'Lo-fi Study', genre: 'Lo-fi Hip Hop', mood: 'Relaxing', prompt: 'Jazzy lo-fi hip hop beat with a vinyl crackle.', style: '85 bpm, Rhodes piano, upright bass, boom-bap drums', chords: 'Fmaj7-E7-Am7-Gm7-C7' },
+                    { name: '80s Synth Pop', genre: 'Synthwave', mood: 'Uplifting', prompt: 'Classic 80s synth pop track with a catchy melody.', style: '125 bpm, Yamaha DX7 electric piano, Roland Juno-106 pads, Roland TR-707 drums', chords: 'C-G-Am-F' }
+                ],
+                excludeStyles: [
+                    "children's music", "nursery rhyme", "lullaby", "cheesy", "corny", "overly simple", "generic", "stock music", "corporate", "motivational", "bad singing", "out of tune", "off-key", "poorly recorded", "muffled", "lo-fi (unless intended)", "annoying", "shrill", "muddy mix"
+                ],
+                hardwaxTags: [
+                    "Ambient", "Basic Channel", "Chicago Oldschool", "Collectors Items", "Colundi everyOne", "Detroit", "Detroit House", "Digital", "Drum & Bass", "Drexciya", "Essentials", "Electro", "Electronica", "Exclusives", "Grime", "Honest Jon’s", "House", "Irdial Discs", "Mego", "New Global Styles", "Reissues", "Surgeon", "Techno"
+                ]
+            };
+
+            const initialData = JSON.parse(JSON.stringify(data));
+
+            const promptDatabase = {
+                mainPrompt: [
+                    "A dark, driving techno track for a warehouse rave at 4 AM.",
+                    "Cinematic orchestral score for an epic space battle scene.",
+                    "Chill lo-fi hip hop beat for studying or relaxing.",
+                    "Uplifting synthwave anthem with a retro 80s vibe.",
+                    "Melancholic ambient soundscape with evolving pads and textures.",
+                    "Aggressive industrial metal with distorted guitars and powerful drums.",
+                    "Jazzy deep house track with a groovy bassline and soulful piano chords.",
+                    "Experimental electronic piece using granular synthesis and field recordings."
+                ],
+                styleElements: {
+                    instrumentation: ["Roland TR-909 drum machine", "Roland TR-707 drums", "MFB Tanzbär on drums", "Elektron Machinedrum UW", "Sequential Prophet-5 synth", "Yamaha DX7 synth", "Roland Juno-106 synth", "Korg MS-20 mono synth", "Rhodes electric piano", "upright bass", "string quartet", "distorted 808 bass", "arpeggiated synth lead", "Korg Volca Keys lead melody", "Korg Volca Bass", "crystal-clear melodic hooks"],
+                    artists: ["inspired by Kraftwerk", "in the style of Aphex Twin", "sounds like Daft Punk", "Nils Frahm style piano", "channeling the energy of The Prodigy", "Moritz von Oswald Dub Techno sound", "Peverelist style"],
+                    technical: ["140 BPM", "house-tempo grooves", "heavy sidechain compression", "gated reverb on snare", "vinyl crackle effect", "analog warmth", "wide stereo field", "tape saturation", "sub bass pressure"],
+                    vocalStyles: ["ethereal female vocals", "deep male spoken word", "robotic vocoder voice", "operatic choir", "whispered ASMR vocals", "distorted screaming vocals"]
+                }
+            };
+
+            // --- ELEMENT SELECTORS ---
+            const selectors = {
+                tabButtons: document.querySelectorAll('.tab-button'),
+                tabPanels: document.querySelectorAll('.tab-panel'),
+                genreSelect: document.getElementById('genre-select'),
+                moodSelect: document.getElementById('mood-select'),
+                keySelect: document.getElementById('key-select'),
+                mainPrompt: document.getElementById('main-prompt'),
+                styleElements: document.getElementById('style-elements'),
+                chordProgression: document.getElementById('chord-progression'),
+                bpmSlider: document.getElementById('bpm-slider'),
+                bpmValue: document.getElementById('bpm-value'),
+                structureTags: document.getElementById('structure-tags'),
+                vocalTags: document.getElementById('vocal-tags'),
+                effectTags: document.getElementById('effect-tags'),
+                selectedTagsDisplay: document.getElementById('selected-tags-display'),
+                templateGrid: document.getElementById('template-grid'),
+                completePrompt: document.getElementById('complete-prompt'),
+                settingsSummary: document.getElementById('settings-summary'),
+                charCount: document.getElementById('char-count'),
+                copyComplete: document.getElementById('copy-complete'),
+                generateSuno: document.getElementById('generate-suno'),
+                randomPrompt: document.getElementById('random-prompt'),
+                analyseInput: document.getElementById('analyse-input'),
+                analyseButton: document.getElementById('analyse-button'),
+                // Gemini selectors
+                geminiSuggestStyles: document.getElementById('gemini-suggest-styles'),
+                geminiSuggestChords: document.getElementById('gemini-suggest-chords'),
+                inspirationInput: document.getElementById('inspiration-input'),
+                generateInspirationButton: document.getElementById('generate-inspiration-button'),
+                inspirationResults: document.getElementById('inspiration-results'),
+                generatedMainPrompt: document.getElementById('generated-main-prompt'),
+                generatedStyleElements: document.getElementById('generated-style-elements'),
+                generatedBpm: document.getElementById('generated-bpm'),
+                generatedKey: document.getElementById('generated-key'),
+                generatedChords: document.getElementById('generated-chords'),
+                generatedGenre: document.getElementById('generated-genre'),
+                generatedMood: document.getElementById('generated-mood'),
+                applyInspirationButton: document.getElementById('apply-inspiration-button'),
+                 // AI Refiner selectors
+                refinerSourceSelect: document.getElementById('refiner-source-select'),
+                refinePromptButton: document.getElementById('refine-prompt-button'),
+                refinerResults: document.getElementById('refiner-results'),
+                refinedMainPrompt: document.getElementById('refined-main-prompt'),
+                refinedStyleElements: document.getElementById('refined-style-elements'),
+                refinedBpm: document.getElementById('refined-bpm'),
+                refinedKey: document.getElementById('refined-key'),
+                refinedChords: document.getElementById('refined-chords'),
+                refinedGenre: document.getElementById('refined-genre'),
+                refinedMood: document.getElementById('refined-mood'),
+                applyRefinedButton: document.getElementById('apply-refined-button'),
+                // Bandcamp selectors
+                bandcampTagsInput: document.getElementById('bandcamp-tags-input'),
+                generateFromTagsButton: document.getElementById('generate-from-tags-button'),
+                bandcampResults: document.getElementById('bandcamp-results'),
+                generatedBcMainPrompt: document.getElementById('generated-bc-main-prompt'),
+                generatedBcStyleElements: document.getElementById('generated-bc-style-elements'),
+                generatedBcBpm: document.getElementById('generated-bc-bpm'),
+                generatedBcKey: document.getElementById('generated-bc-key'),
+                generatedBcChords: document.getElementById('generated-bc-chords'),
+                generatedBcGenre: document.getElementById('generated-bc-genre'),
+                generatedBcMood: document.getElementById('generated-bc-mood'),
+                applyBandcampButton: document.getElementById('apply-bandcamp-button'),
+                // Hardwax selectors
+                hardwaxKeywordsInput: document.getElementById('hardwax-keywords-input'),
+                generateFromHardwaxButton: document.getElementById('generate-from-hardwax-button'),
+                hardwaxResults: document.getElementById('hardwax-results'),
+                hardwaxTagsContainer: document.getElementById('hardwax-tags-container'),
+                generatedHwMainPrompt: document.getElementById('generated-hw-main-prompt'),
+                generatedHwStyleElements: document.getElementById('generated-hw-style-elements'),
+                generatedHwBpm: document.getElementById('generated-hw-bpm'),
+                generatedHwKey: document.getElementById('generated-hw-key'),
+                generatedHwChords: document.getElementById('generated-hw-chords'),
+                generatedHwGenre: document.getElementById('generated-hw-genre'),
+                generatedHwMood: document.getElementById('generated-hw-mood'),
+                applyHardwaxButton: document.getElementById('apply-hardwax-button'),
+                // Exclude styles selectors
+                defaultExcludeTags: document.getElementById('default-exclude-tags'),
+                customExcludeStyles: document.getElementById('custom-exclude-styles'),
+                saveCustomExclude: document.getElementById('save-custom-exclude'),
+                finalExcludeList: document.getElementById('final-exclude-list'),
+                copyExcludeList: document.getElementById('copy-exclude-list'),
+                // Final Output Controls
+                generateSongTitleButton: document.getElementById('generate-song-title-button'),
+                generatedSongTitle: document.getElementById('generated-song-title'),
+                titleWordCountSlider: document.getElementById('title-word-count-slider'),
+                titleWordCountValue: document.getElementById('title-word-count-value'),
+                saveAsTemplateButton: document.getElementById('save-as-template-button'),
+                vibeCheckButton: document.getElementById('vibe-check-button'), // New selector
+                vibeCheckResult: document.getElementById('vibe-check-result'), // New selector
+                vibeCheckResetButton: document.querySelector('[data-target="vibe-check-result"]'), // Selector for the reset button
+                songTitleResetButton: document.querySelector('[data-target="generated-song-title"]'), // Selector for the reset button
+                 // Data Management
+                exportDataButton: document.getElementById('export-data-button'),
+                importDataButton: document.getElementById('import-data-button'),
+                importFileInput: document.getElementById('import-file-input'),
+                resetAppButton: document.getElementById('reset-app-button'),
+                dataEditorContainer: document.getElementById('data-editor-container'),
+                 // Command Palette
+                commandPaletteOverlay: document.getElementById('command-palette-overlay'),
+                commandInput: document.getElementById('command-input'),
+                commandList: document.getElementById('command-list'),
+                // Modal Selectors
+                loadMainExamples: document.getElementById('load-main-examples'),
+                loadStyleExamples: document.getElementById('load-style-examples'),
+                exampleModal: document.getElementById('example-modal'),
+                modalTitle: document.getElementById('modal-title'),
+                modalBody: document.getElementById('modal-body'),
+                closeModal: document.getElementById('close-modal')
+            };
+
+            let activeTags = new Set();
+            let activeExcludeTags = new Set();
+            let currentExampleTarget = null;
+            let draggedItemInfo = null;
+            let commandPaletteOpen = false;
+            let selectedCommandIndex = -1;
+
+             // --- Command Palette Commands Definition ---
+             const commands = [
+                 { name: 'Gehe zu Prompt Builder', action: () => activateTab('prompt-builder') },
+                 { name: 'Gehe zu KI-Refiner', action: () => activateTab('ai-refiner') },
+                 { name: 'Gehe zu AI Inspiration', action: () => activateTab('ai-inspiration') },
+                 { name: 'Gehe zu Bandcamp Tags', action: () => activateTab('bandcamp-tags') },
+                 { name: 'Gehe zu Wax Style', action: () => activateTab('hardwax-style') },
+                 { name: 'Gehe zu Song Structure', action: () => activateTab('song-structure') },
+                 { name: 'Gehe zu Ausschließen', action: () => activateTab('exclude-styles') },
+                 { name: 'Gehe zu Analyse', action: () => activateTab('analyse') },
+                 { name: 'Gehe zu Templates', action: () => activateTab('templates') },
+                 { name: 'Gehe zu Datenverwaltung', action: () => activateTab('data-management') },
+                 { name: 'Zufälligen Prompt generieren', action: randomize },
+                 { name: 'Daten exportieren (JSON)', action: handleExport },
+                 { name: 'Daten importieren (JSON)', action: handleImportClick },
+                 { name: 'App zurücksetzen', action: handleReset },
+                 { name: 'Palette schließen', action: closeCommandPalette }
+             ];
+
+
+            // --- INITIALIZATION FUNCTIONS ---
+             function reinitializeUI() {
+                populateSelect(selectors.genreSelect, data.genres, "Select Genre...");
+                populateSelect(selectors.moodSelect, data.moods, "Select Mood...");
+                populateSelect(selectors.keySelect, data.keys, "Select Key...");
+                createTags(selectors.structureTags, data.tags.structure, 'structure', handleTagClick);
+                createTags(selectors.vocalTags, data.tags.vocals, 'vocals', handleTagClick);
+                createTags(selectors.effectTags, data.tags.effects, 'effects', handleTagClick);
+                createTemplates();
+                renderExcludeTags();
+                createHardwaxTags();
+                renderDataManagementView(); // Render the new data editor
+                updateFinalPrompt();
+                updateFinalExcludeList();
+                 // Ensure reset buttons are correctly displayed/hidden initially
+                updateResetButtonVisibility(selectors.vibeCheckResult, selectors.vibeCheckResetButton);
+                updateResetButtonVisibility(selectors.generatedSongTitle, selectors.songTitleResetButton, "Dein Songtitel...");
+             }
+
+
+            function populateSelect(selectElement, options, placeholder) {
+                const currentValue = selectElement.value;
+                selectElement.innerHTML = `<option value="">${placeholder || 'Select...'}</option>`;
+                options.forEach(option => {
+                    const opt = document.createElement('option');
+                    opt.value = option;
+                    opt.textContent = option;
+                    selectElement.appendChild(opt);
+                });
+                if(options.includes(currentValue)) {
+                    selectElement.value = currentValue;
+                }
+            }
+
+            function createTags(container, tags, type, clickHandler) {
+                container.innerHTML = '';
+                tags.forEach(tag => {
+                    const button = document.createElement('button');
+                    button.textContent = tag;
+                    button.dataset.tag = tag;
+                    if(type) button.dataset.type = type;
+                    button.className = 'tag-button bg-gray-700 hover:bg-teal-600 text-sm py-1 px-3 rounded-full transition';
+                    container.appendChild(button);
+                });
+                 container.addEventListener('click', clickHandler);
+            }
+            
+            function renderExcludeTags(){
+                selectors.defaultExcludeTags.innerHTML = '';
+                data.excludeStyles.forEach(tag => {
+                    const button = document.createElement('button');
+                    button.textContent = tag;
+                    button.dataset.tag = tag;
+                    button.className = 'tag-button bg-gray-700 hover:bg-teal-600 text-sm py-1 px-3 rounded-full transition';
+                     if (activeExcludeTags.has(tag)) {
+                        button.classList.add('bg-teal-500', 'text-white');
+                    }
+                    selectors.defaultExcludeTags.appendChild(button);
+                });
+            }
+
+            function createTemplates() {
+                selectors.templateGrid.innerHTML = '';
+                data.templates.forEach(template => {
+                    const button = document.createElement('button');
+                    button.className = 'template-button bg-gray-800 p-4 rounded-lg text-left hover:bg-gray-700 transition';
+                    button.innerHTML = `<h4 class="font-bold text-teal-400">${template.name}</h4><p class="text-sm text-gray-400">${template.genre} - ${template.mood}</p>`;
+                    button.onclick = () => applyTemplate(template);
+                    selectors.templateGrid.appendChild(button);
+                });
+            }
+
+            function createHardwaxTags() {
+                selectors.hardwaxTagsContainer.innerHTML = '';
+                data.hardwaxTags.forEach(tag => {
+                    const button = document.createElement('button');
+                    button.textContent = tag;
+                    button.dataset.tag = tag;
+                    button.className = 'tag-button bg-gray-700 hover:bg-teal-600 text-sm py-1 px-3 rounded-full transition';
+                    selectors.hardwaxTagsContainer.appendChild(button);
+                });
+            }
+
+            // --- UPDATE & RENDER FUNCTIONS ---
+            function updateFinalPrompt() {
+                const main = selectors.mainPrompt.value.trim();
+                const style = selectors.styleElements.value.trim();
+                const genre = selectors.genreSelect.value;
+                const mood = selectors.moodSelect.value;
+                const key = selectors.keySelect.value;
+                const bpm = selectors.bpmSlider.value;
+                const chords = selectors.chordProgression.value.trim();
+                
+                const tagsString = Array.from(activeTags).join(', ');
+
+                let promptParts = [];
+                if (main) promptParts.push(main);
+                if (genre) promptParts.push(genre);
+                if (mood) promptParts.push(mood);
+                if (style) promptParts.push(style);
+                if (chords) promptParts.push(`Chord Progression: ${chords}`);
+                if (tagsString) promptParts.push(tagsString);
+                
+                const finalPrompt = promptParts.join(', ');
+                selectors.completePrompt.textContent = finalPrompt || 'Dein Prompt wird hier angezeigt...';
+                
+                const settings = `BPM: ${bpm} | Key: ${key || '-'} | Genre: ${genre || '-'} | Mood: ${mood || '-'}`;
+                selectors.settingsSummary.textContent = settings;
+
+                const charLength = finalPrompt.length;
+                selectors.charCount.textContent = `${charLength}`;
+                const charCountSpan = selectors.charCount;
+                charCountSpan.classList.remove('char-count-ok', 'char-count-warning', 'char-count-error');
+                if (charLength > 1000) { // Updated limit
+                    charCountSpan.classList.add('char-count-error');
+                } else if (charLength > 950) { // Updated warning threshold
+                    charCountSpan.classList.add('char-count-warning');
+                } else {
+                    charCountSpan.classList.add('char-count-ok');
+                }
+            }
+            
+            function updateSelectedTagsDisplay() {
+                if (activeTags.size === 0) {
+                    selectors.selectedTagsDisplay.textContent = 'No tags selected.';
+                } else {
+                    selectors.selectedTagsDisplay.innerHTML = '';
+                    activeTags.forEach(tag => {
+                        const span = document.createElement('span');
+                        span.className = 'inline-block bg-teal-600 text-white text-sm font-medium mr-2 mb-2 px-2.5 py-1 rounded-full';
+                        span.textContent = tag;
+                        selectors.selectedTagsDisplay.appendChild(span);
+                    });
+                }
+                
+                document.querySelectorAll('#song-structure .tag-button').forEach(btn => {
+                   if(activeTags.has(btn.dataset.tag)){
+                       btn.classList.add('bg-teal-500', 'text-white');
+                   } else {
+                       btn.classList.remove('bg-teal-500', 'text-white');
+                   }
+                });
+            }
+
+            function updateFinalExcludeList() {
+                const customStyles = selectors.customExcludeStyles.value.split(',')
+                    .map(s => s.trim()).filter(Boolean);
+                const combined = new Set([...activeExcludeTags, ...customStyles]);
+                const finalText = Array.from(combined).join(', ');
+                selectors.finalExcludeList.textContent = finalText || 'Keine Begriffe zum Ausschließen ausgewählt.';
+            }
+
+            // Helper for reset buttons
+            function updateResetButtonVisibility(resultDiv, resetButton, placeholder = "") {
+                if (!resetButton) return; // Guard clause
+                 // Show reset button if there's text, it's not the placeholder, and not currently italicized (placeholder state)
+                 if (resultDiv.textContent && resultDiv.textContent !== placeholder && !resultDiv.classList.contains('italic')) {
+                    resetButton.classList.remove('hidden');
+                } else {
+                    resetButton.classList.add('hidden');
+                }
+            }
+
+            // --- EVENT HANDLERS & LOGIC ---
+             function activateTab(tabId) {
+                const tabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+                if(tabButton) {
+                    tabButton.click(); // Simulate click to use existing logic
+                }
+            }
+
+            function handleTabClick(e) {
+                const clickedTab = e.target.closest('.tab-button');
+                if (!clickedTab) return;
+                selectors.tabButtons.forEach(btn => btn.classList.remove('active'));
+                clickedTab.classList.add('active');
+                const tabId = clickedTab.dataset.tab;
+                selectors.tabPanels.forEach(panel => {
+                    panel.id === tabId ? panel.classList.remove('hidden') : panel.classList.add('hidden');
+                });
+                if (tabId === 'data-management') {
+                    renderDataManagementView();
+                }
+            }
+
+            function handleTagClick(e) {
+                const clickedTag = e.target.closest('.tag-button');
+                if (!clickedTag) return;
+                const tag = clickedTag.dataset.tag;
+                if (activeTags.has(tag)) {
+                    activeTags.delete(tag);
+                } else {
+                    activeTags.add(tag);
+                }
+                updateSelectedTagsDisplay();
+                updateFinalPrompt();
+            }
+            
+            function handleHardwaxTagClick(e) {
+                const clickedTag = e.target.closest('.tag-button');
+                if (!clickedTag) return;
+                const tag = clickedTag.dataset.tag;
+                const input = selectors.hardwaxKeywordsInput;
+                const currentKeywords = new Set(input.value.split(',').map(k => k.trim()).filter(Boolean));
+                currentKeywords.add(tag);
+                input.value = Array.from(currentKeywords).join(', ');
+            }
+
+            function handleExcludeTagClick(e) {
+                 const clickedTag = e.target.closest('.tag-button');
+                if (!clickedTag) return;
+                const tag = clickedTag.dataset.tag;
+                if(activeExcludeTags.has(tag)) {
+                    activeExcludeTags.delete(tag);
+                    clickedTag.classList.remove('bg-teal-500', 'text-white');
+                } else {
+                    activeExcludeTags.add(tag);
+                    clickedTag.classList.add('bg-teal-500', 'text-white');
+                }
+                updateFinalExcludeList();
+            }
+            
+            function applyTemplate(template) {
+                 // Check if template object and properties exist before accessing
+                if (!template) return;
+                selectors.genreSelect.value = template.genre || '';
+                selectors.moodSelect.value = template.mood || '';
+                selectors.mainPrompt.value = template.prompt || '';
+                selectors.styleElements.value = template.style || '';
+                selectors.chordProgression.value = template.chords || '';
+                
+                let bpmFoundInStyle = false;
+                if (template.style && template.style.includes('bpm')) {
+                    const bpmMatch = template.style.match(/(\d+)\s*bpm/i);
+                    if (bpmMatch) {
+                        const bpmNum = parseInt(bpmMatch[1]);
+                         if (bpmNum >= 60 && bpmNum <= 200) {
+                             selectors.bpmSlider.value = bpmNum;
+                             selectors.bpmValue.textContent = bpmNum;
+                             bpmFoundInStyle = true;
+                         }
+                    }
+                }
+                 // If no BPM in style, reset slider to default
+                if (!bpmFoundInStyle) {
+                     selectors.bpmSlider.value = 120;
+                     selectors.bpmValue.textContent = 120;
+                }
+
+                 // Try to find the key, including Camelot
+                let foundKey = data.keys.find(k => k === template.key || (template.key && k.toLowerCase().includes(template.key.toLowerCase().split(" - ")[0])));
+                if(foundKey) selectors.keySelect.value = foundKey;
+                else selectors.keySelect.value = ''; // Reset if not found
+
+                document.querySelector('.tab-button[data-tab="prompt-builder"]').click();
+                updateFinalPrompt();
+            }
+            
+            function randomize() {
+                selectors.genreSelect.value = data.genres[Math.floor(Math.random() * data.genres.length)];
+                selectors.moodSelect.value = data.moods[Math.floor(Math.random() * data.moods.length)];
+                selectors.keySelect.value = data.keys[Math.floor(Math.random() * data.keys.length)];
+                const randomBpm = Math.floor(Math.random() * (160 - 90 + 1)) + 90;
+                selectors.bpmSlider.value = randomBpm;
+                selectors.bpmValue.textContent = randomBpm;
+                
+                selectors.mainPrompt.value = promptDatabase.mainPrompt[Math.floor(Math.random() * promptDatabase.mainPrompt.length)];
+                
+                let randomStyles = [];
+                const styleCategories = Object.keys(promptDatabase.styleElements);
+                for(let i=0; i < 3; i++) {
+                    const randomCategoryKey = styleCategories[Math.floor(Math.random() * styleCategories.length)];
+                    const randomCategory = promptDatabase.styleElements[randomCategoryKey];
+                    const randomElement = randomCategory[Math.floor(Math.random() * randomCategory.length)];
+                    if(!randomStyles.includes(randomElement)) {
+                        randomStyles.push(randomElement);
+                    }
+                }
+                selectors.styleElements.value = randomStyles.join(', ');
+                selectors.chordProgression.value = '';
+                updateFinalPrompt();
+            }
+
+            function copyToClipboard(text, button) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.top = "-9999px";
+                textArea.style.left = "-9999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    const originalText = button.innerHTML;
+                    button.innerHTML = successful ? '✅ Kopiert!' : '❌ Fehler!';
+                    setTimeout(() => { button.innerHTML = originalText; }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy text with fallback: ', err);
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '❌ Fehler!';
+                     setTimeout(() => { button.innerHTML = originalText; }, 2000);
+                }
+                document.body.removeChild(textArea);
+            }
+
+            function analyzePrompt() {
+                let promptText = selectors.analyseInput.value;
+                if (!promptText.trim()) return;
+
+                // Reset all fields first
+                selectors.genreSelect.value = '';
+                selectors.moodSelect.value = '';
+                selectors.keySelect.value = '';
+                selectors.mainPrompt.value = '';
+                selectors.styleElements.value = '';
+                selectors.chordProgression.value = '';
+                activeTags.clear();
+
+                const bpmRegex = /\b(\d{2,3})\s*bpm\b/i;
+                const bpmMatch = promptText.match(bpmRegex);
+                 if (bpmMatch) {
+                    const bpmNum = parseInt(bpmMatch[1]);
+                    if (bpmNum >= 60 && bpmNum <= 200) {
+                        selectors.bpmSlider.value = bpmNum;
+                        selectors.bpmValue.textContent = bpmNum;
+                    }
+                    promptText = promptText.replace(bpmRegex, '');
+                } else {
+                     selectors.bpmSlider.value = 120; // Default if not found
+                     selectors.bpmValue.textContent = 120;
+                }
+
+
+                const chordRegex = /chord progression:\s*([a-zA-Z0-9\s\-,#\/()]+)/i;
+                const chordMatch = promptText.match(chordRegex);
+                if(chordMatch) {
+                    selectors.chordProgression.value = chordMatch[1].trim();
+                    promptText = promptText.replace(chordRegex, '');
+                }
+
+                function extractKeyword(text, keywords) {
+                    // Sort keywords by length descending to match longer phrases first (like "Detroit House")
+                    const sortedKeywords = [...keywords].sort((a, b) => b.length - a.length);
+                    for (const keyword of sortedKeywords) {
+                         // Match whole word, allow Camelot keys like 8A, 10B, be careful with slashes
+                        const escapedKeyword = keyword.replace(/ /g, '\\s').replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\//g, '\\/');
+                        const regex = new RegExp(`\\b${escapedKeyword}(?!\\w)`, 'i'); 
+                        if (regex.test(text)) {
+                            return [keyword, text.replace(regex, '')];
+                        }
+                    }
+                    return [null, text];
+                }
+                
+                let foundKeyword;
+                [foundKeyword, promptText] = extractKeyword(promptText, data.genres);
+                if(foundKeyword) selectors.genreSelect.value = foundKeyword;
+
+                [foundKeyword, promptText] = extractKeyword(promptText, data.moods);
+                if(foundKeyword) selectors.moodSelect.value = foundKeyword;
+                
+                 // Match keys carefully, prioritizing longer matches like Camelot
+                [foundKeyword, promptText] = extractKeyword(promptText, data.keys);
+                if(foundKeyword) selectors.keySelect.value = foundKeyword;
+                
+                const allTags = [...data.tags.structure, ...data.tags.vocals, ...data.tags.effects];
+                 allTags.forEach(tag => {
+                    const regex = new RegExp(`\\b${tag.replace(/ /g, '\\s')}\\b`, 'i');
+                    if (regex.test(promptText)) {
+                        activeTags.add(tag);
+                        promptText = promptText.replace(regex, '');
+                    }
+                });
+
+                let foundStyles = [];
+                const allStyleElements = Object.values(promptDatabase.styleElements).flat();
+                 allStyleElements.forEach(style => {
+                    const regex = new RegExp(style.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+                     if (regex.test(promptText)) {
+                        foundStyles.push(style);
+                        promptText = promptText.replace(regex, '');
+                    }
+                });
+                selectors.styleElements.value = foundStyles.join(', ');
+                // Clean up remaining text for main prompt: remove extra commas, spaces
+                selectors.mainPrompt.value = promptText.replace(/,\s*,/g, ',').replace(/(^[\s,]+)|([\s,]+$)/g, '').replace(/\s+/g, ' ').trim();
+
+
+                updateSelectedTagsDisplay();
+                updateFinalPrompt();
+                document.querySelector('.tab-button[data-tab="prompt-builder"]').click();
+            }
+
+            // --- GEMINI API INTEGRATION ---
+            async function callGemini(button, systemPrompt, userQuery, isJson = false, jsonSchema = null) {
+                 const originalButtonContent = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<div class="spinner"></div>';
+
+                const apiKey = ""; // Leave blank, handled by environment
+                const modelName = "gemini-2.5-flash-preview-09-2025"; // Correct model name
+                
+                 // Construct URL correctly for the environment
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                // console.log("API URL:", apiUrl); // Log the URL for debugging
+                
+                let payload = {
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    contents: [{ parts: [{ text: userQuery }] }],
+                };
+
+                if (isJson) {
+                     payload.generationConfig = {
+                        responseMimeType: "application/json",
+                        responseSchema: jsonSchema || { // Default schema if none provided
+                            type: "OBJECT",
+                             properties: {
+                                "mainPrompt": { "type": "STRING" },
+                                "styleElements": { "type": "STRING" },
+                                "bpm": { "type": "STRING" },
+                                "keySignature": { "type": "STRING" },
+                                "chordProgression": { "type": "STRING" },
+                                "genre": { "type": "STRING" },
+                                "mood": { "type": "STRING" }
+                            }
+                        }
+                    };
+                }
+                 // console.log("API Payload:", JSON.stringify(payload, null, 2)); // Log payload
+
+                try {
+                    let response;
+                    let retries = 3;
+                    let delay = 1000;
+                    for (let i = 0; i < retries; i++) {
+                        response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        // console.log(`Attempt ${i+1}: Status ${response.status}`); // Log status
+                        if (response.ok) break;
+                         if (response.status === 401 || response.status === 403) {
+                             console.error("Authentication/Authorization error. Check API key setup or environment.");
+                             throw new Error(`API request failed with status ${response.status} (Authentication/Authorization)`);
+                         }
+                        // Only retry on server errors (5xx) or rate limits (429)
+                        if (response.status < 500 && response.status !== 429) {
+                             throw new Error(`API request failed with status ${response.status}`);
+                        }
+                        // console.warn(`API request failed with status ${response.status}. Retrying in ${delay / 1000}s...`);
+                        await new Promise(res => setTimeout(res, delay));
+                        delay *= 2; // Exponential backoff
+                    }
+                    if (!response.ok) throw new Error(`API request failed after ${retries} retries with status ${response.status}`);
+                    
+                    const result = await response.json();
+                     // console.log("API Result:", JSON.stringify(result, null, 2)); // Log result
+                    
+                    // Add more robust checking for candidate and content parts
+                    const candidate = result.candidates?.[0];
+                    if (!candidate) throw new Error("No candidate found in API response.");
+                    if(candidate.finishReason && candidate.finishReason !== "STOP") {
+                        console.warn("API call finished with reason:", candidate.finishReason);
+                         // Handle potential safety blocks or other non-STOP reasons
+                         if (candidate.finishReason === "SAFETY") {
+                             throw new Error("API call blocked due to safety settings.");
+                         }
+                         // If not STOP and not SAFETY, it might be MAX_TOKENS or other limit, still try to get partial text
+                    }
+                    
+                    const text = candidate.content?.parts?.[0]?.text;
+                    // Allow empty string as valid response, but throw if text is undefined/null
+                    if (text === undefined || text === null) { 
+                         // Check if there are safety ratings indicating a block
+                        if (candidate.safetyRatings?.some(rating => rating.blocked)) {
+                            throw new Error("API response blocked due to safety settings (no text returned).");
+                        } else {
+                            throw new Error("No content text received from API.");
+                        }
+                    }
+                    
+                    button.innerHTML = '✅';
+                    return text;
+
+                } catch (error) {
+                    console.error("Gemini API call failed:", error);
+                    button.innerHTML = '❌';
+                    // Display error message more prominently in the UI
+                    const displayError = (targetSelector, defaultMsg) => {
+                        const targetElement = document.querySelector(targetSelector);
+                        if (targetElement) {
+                             targetElement.textContent = `Fehler: ${error.message}`;
+                             targetElement.classList.remove('italic', 'text-gray-400');
+                             targetElement.classList.add('text-red-400');
+                        } else {
+                            alert(defaultMsg + `\n${error.message}`);
+                        }
+                    };
+
+                    if (isJson) {
+                         const resultsContainer = button.closest('.tab-panel').querySelector('[id$="-results"]');
+                         if (resultsContainer) {
+                             resultsContainer.classList.remove('hidden'); // Show container to display error
+                             const mainPromptDisplay = resultsContainer.querySelector('[id^="generated-"], [id^="refined-"]');
+                             if (mainPromptDisplay) mainPromptDisplay.textContent = `Fehler: ${error.message}`;
+                         } else {
+                              alert(`Fehler bei der KI-Anfrage:\n${error.message}`);
+                         }
+                    } else if (button.id === 'vibe-check-button') {
+                         displayError('#vibe-check-result', 'Fehler beim Vibe Check.');
+                         updateResetButtonVisibility(selectors.vibeCheckResult, selectors.vibeCheckResetButton);
+                    } else if (button.id === 'generate-song-title-button') {
+                         displayError('#generated-song-title', 'Fehler bei der Titelgenerierung.');
+                         updateResetButtonVisibility(selectors.generatedSongTitle, selectors.songTitleResetButton, "Dein Songtitel...");
+                    } else {
+                         // Generic error for other text-based calls if needed
+                         alert(`KI-Anfrage fehlgeschlagen:\n${error.message}`);
+                    }
+                    return null;
+                } finally {
+                    setTimeout(() => {
+                         // Restore button only if it hasn't been changed by another process
+                        if (button.innerHTML !== originalButtonContent && (button.innerHTML === '✅' || button.innerHTML === '❌')) {
+                            button.innerHTML = originalButtonContent;
+                        }
+                        button.disabled = false;
+                    }, 2000);
+                }
+            }
+            
+            async function handleSuggestStyles() {
+                const mainPromptText = selectors.mainPrompt.value;
+                if (!mainPromptText.trim()) { return; }
+                const systemPrompt = "You are a creative music production assistant. Your task is to suggest fitting style elements for a song description. Respond with a comma-separated list of 3 to 5 relevant musical attributes, instruments, artist inspirations, or technical details. Do not add any extra text or explanations. Only provide the comma-separated list.";
+                const suggestedText = await callGemini(selectors.geminiSuggestStyles, systemPrompt, mainPromptText);
+                if (suggestedText) {
+                    const currentStyles = selectors.styleElements.value.trim();
+                    selectors.styleElements.value = currentStyles ? `${currentStyles}, ${suggestedText}` : suggestedText;
+                    updateFinalPrompt();
+                }
+            }
+
+             async function handleSuggestChords() {
+                const mainPrompt = selectors.mainPrompt.value;
+                const genre = selectors.genreSelect.value;
+                const mood = selectors.moodSelect.value;
+
+                if (!mainPrompt.trim() && !genre && !mood) { return; }
+                const userQuery = `Based on the following music idea, suggest 3 simple but effective chord progressions. Main Idea: ${mainPrompt}, Genre: ${genre}, Mood: ${mood}`;
+                const systemPrompt = "You are a music theory expert. Your task is to provide chord progressions suitable for a given musical context. Respond ONLY with a list of progressions (e.g., 'i-VII-VI-V' or 'Am-G-C-F'). List each suggestion on a new line. Do not add any other text, titles, or explanations.";
+                const suggestedChords = await callGemini(selectors.geminiSuggestChords, systemPrompt, userQuery);
+                if (suggestedChords) {
+                    selectors.chordProgression.value = suggestedChords;
+                    updateFinalPrompt();
+                }
+            }
+
+             // --- AI Refiner Function ---
+            async function handleRefinePrompt() {
+                const source = selectors.refinerSourceSelect.value;
+                let sourceData = {};
+
+                // Gather data based on selected source
+                 switch (source) {
+                    case 'builder':
+                        sourceData = {
+                            mainPrompt: selectors.mainPrompt.value,
+                            styleElements: selectors.styleElements.value,
+                            genre: selectors.genreSelect.value,
+                            mood: selectors.moodSelect.value,
+                            keySignature: selectors.keySelect.value,
+                            bpm: selectors.bpmValue.textContent + ' bpm',
+                            chordProgression: selectors.chordProgression.value,
+                             tags: Array.from(activeTags).join(', ') // Include selected structure tags
+                        };
+                        break;
+                     case 'inspiration':
+                        if (!selectors.inspirationResults.classList.contains('hidden')) {
+                            sourceData = {
+                                mainPrompt: selectors.generatedMainPrompt.textContent,
+                                styleElements: selectors.generatedStyleElements.textContent,
+                                genre: selectors.generatedGenre.textContent,
+                                mood: selectors.generatedMood.textContent,
+                                keySignature: selectors.generatedKey.textContent,
+                                bpm: selectors.generatedBpm.textContent,
+                                chordProgression: selectors.generatedChords.textContent,
+                                tags: Array.from(activeTags).join(', ') // Also include current structure tags for context
+                            };
+                        } else {
+                            alert("Bitte generiere zuerst Ergebnisse aus 'AI Inspiration'.");
+                            return;
+                        }
+                        break;
+                    case 'bandcamp':
+                         if (!selectors.bandcampResults.classList.contains('hidden')) {
+                             sourceData = {
+                                mainPrompt: selectors.generatedBcMainPrompt.textContent,
+                                styleElements: selectors.generatedBcStyleElements.textContent,
+                                genre: selectors.generatedBcGenre.textContent,
+                                mood: selectors.generatedBcMood.textContent,
+                                keySignature: selectors.generatedBcKey.textContent,
+                                bpm: selectors.generatedBcBpm.textContent,
+                                chordProgression: selectors.generatedBcChords.textContent,
+                                tags: Array.from(activeTags).join(', ')
+                            };
+                        } else {
+                            alert("Bitte generiere zuerst Ergebnisse aus 'Bandcamp Tags'.");
+                            return;
+                        }
+                        break;
+                     case 'hardwax':
+                         if (!selectors.hardwaxResults.classList.contains('hidden')) {
+                             sourceData = {
+                                mainPrompt: selectors.generatedHwMainPrompt.textContent,
+                                styleElements: selectors.generatedHwStyleElements.textContent,
+                                genre: selectors.generatedHwGenre.textContent,
+                                mood: selectors.generatedHwMood.textContent,
+                                keySignature: selectors.generatedHwKey.textContent,
+                                bpm: selectors.generatedHwBpm.textContent,
+                                chordProgression: selectors.generatedHwChords.textContent,
+                                tags: Array.from(activeTags).join(', ')
+                            };
+                         } else {
+                             alert("Bitte generiere zuerst Ergebnisse aus 'Wax Style'.");
+                             return;
+                         }
+                        break;
+                    default:
+                        console.error("Unbekannte Refiner-Quelle:", source);
+                        return;
+                }
+
+                 // Prepare user query string from gathered data
+                 let userQuery = `Refine the following musical idea into a coherent and effective Suno prompt. Prioritize the most impactful elements and ensure the final combined prompt string (main + style + genre + mood + tags + chords) is concise, ideally under 950 characters. Input: \n`;
+                 userQuery += `Main: ${sourceData.mainPrompt || 'N/A'}\n`;
+                 userQuery += `Style: ${sourceData.styleElements || 'N/A'}\n`;
+                 userQuery += `Genre: ${sourceData.genre || 'N/A'}\n`;
+                 userQuery += `Mood: ${sourceData.mood || 'N/A'}\n`;
+                 userQuery += `Key: ${sourceData.keySignature || 'N/A'}\n`;
+                 userQuery += `BPM: ${sourceData.bpm || 'N/A'}\n`;
+                 userQuery += `Chords: ${sourceData.chordProgression || 'N/A'}\n`;
+                 userQuery += `Structure Tags: ${sourceData.tags || 'N/A'}\n`;
+
+
+                const systemPrompt = "You are an expert Suno prompt engineer. Synthesize the provided musical elements (main idea, style, genre, mood, key, bpm, chords, structure tags) into a refined, coherent, and concise set of prompt components. Prioritize the most important and descriptive terms. Ensure the combined length of the final prompt (main + style + genre + mood + tags + chords) is optimized for clarity and stays below 950 characters. Return the refined components as a JSON object with keys: 'mainPrompt', 'styleElements', 'genre', 'mood', 'keySignature', 'bpm', 'chordProgression'.";
+                
+                 // Define the specific JSON schema expected for the refined output
+                 const refinedSchema = {
+                    type: "OBJECT",
+                    properties: {
+                        "mainPrompt": { "type": "STRING" },
+                        "styleElements": { "type": "STRING" },
+                         "genre": { "type": "STRING" },
+                         "mood": { "type": "STRING" },
+                        "keySignature": { "type": "STRING" },
+                        "bpm": { "type": "STRING" },
+                        "chordProgression": { "type": "STRING" }
+                     }
+                };
+
+                 const jsonText = await callGemini(selectors.refinePromptButton, systemPrompt, userQuery, true, refinedSchema);
+
+                 if (jsonText) {
+                    try {
+                        const parsedJson = JSON.parse(jsonText);
+                        selectors.refinedMainPrompt.textContent = parsedJson.mainPrompt || '';
+                        selectors.refinedStyleElements.textContent = parsedJson.styleElements || '';
+                        selectors.refinedBpm.textContent = parsedJson.bpm || '';
+                        selectors.refinedKey.textContent = parsedJson.keySignature || '';
+                        selectors.refinedChords.textContent = parsedJson.chordProgression || '';
+                        selectors.refinedGenre.textContent = parsedJson.genre || '';
+                        selectors.refinedMood.textContent = parsedJson.mood || '';
+                        selectors.refinerResults.classList.remove('hidden');
+                    } catch (e) {
+                        console.error("Failed to parse JSON from Refiner:", e);
+                        selectors.refinerResults.classList.remove('hidden');
+                        selectors.refinedMainPrompt.textContent = "Fehler beim Parsen der KI-Antwort.";
+                        // Clear other fields maybe
+                    }
+                }
+            }
+
+
+            async function handleGenerateInspiration() {
+                const descriptiveText = selectors.inspirationInput.value;
+                if (!descriptiveText.trim()) { return; }
+
+                const systemPrompt = "You are an expert music prompt engineer for Suno AI. Analyze a descriptive text about music and convert it into a structured JSON prompt. Respond with a JSON object containing: 'mainPrompt', 'styleElements', 'bpm', 'keySignature', 'chordProgression', 'genre', and 'mood'.";
+                const jsonText = await callGemini(selectors.generateInspirationButton, systemPrompt, descriptiveText, true);
+                
+                if (jsonText) {
+                    try {
+                        const parsedJson = JSON.parse(jsonText);
+                        selectors.generatedMainPrompt.textContent = parsedJson.mainPrompt || '';
+                        selectors.generatedStyleElements.textContent = parsedJson.styleElements || '';
+                        selectors.generatedBpm.textContent = parsedJson.bpm || '';
+                        selectors.generatedKey.textContent = parsedJson.keySignature || '';
+                        selectors.generatedChords.textContent = parsedJson.chordProgression || '';
+                        selectors.generatedGenre.textContent = parsedJson.genre || '';
+                        selectors.generatedMood.textContent = parsedJson.mood || '';
+                        selectors.inspirationResults.classList.remove('hidden');
+                    } catch(e) {
+                         console.error("Failed to parse JSON from AI Inspiration:", e);
+                         selectors.inspirationResults.classList.remove('hidden');
+                         selectors.generatedMainPrompt.textContent = "Fehler beim Parsen der KI-Antwort.";
+                         // Clear other fields
+                    }
+                }
+            }
+
+            async function handleGenerateFromTags() {
+                 const tagsInput = selectors.bandcampTagsInput.value.trim();
+                 if (!tagsInput) { return; }
+                 // Split by comma or space, trim, and filter empty strings
+                 const tagsText = tagsInput.split(/[\s,]+/).map(tag => tag.trim()).filter(Boolean).join(', '); 
+                 if (!tagsText) { return; } // Ensure there are valid tags after processing
+
+                const systemPrompt = "You are an expert music prompt engineer and curator for Suno AI. Analyze a list of Bandcamp tags and generate a creative, structured JSON prompt. Translate the abstract tags into concrete musical ideas. Respond with a JSON object containing: 'mainPrompt', 'styleElements', 'bpm', 'keySignature', 'chordProgression', 'genre', and 'mood'.";
+                const jsonText = await callGemini(selectors.generateFromTagsButton, systemPrompt, tagsText, true);
+
+                if (jsonText) {
+                    try {
+                        const parsedJson = JSON.parse(jsonText);
+                        selectors.generatedBcMainPrompt.textContent = parsedJson.mainPrompt || '';
+                        selectors.generatedBcStyleElements.textContent = parsedJson.styleElements || '';
+                        selectors.generatedBcBpm.textContent = parsedJson.bpm || '';
+                        selectors.generatedBcKey.textContent = parsedJson.keySignature || '';
+                        selectors.generatedBcChords.textContent = parsedJson.chordProgression || '';
+                        selectors.generatedBcGenre.textContent = parsedJson.genre || '';
+                        selectors.generatedBcMood.textContent = parsedJson.mood || '';
+                        selectors.bandcampResults.classList.remove('hidden');
+                     } catch(e) {
+                         console.error("Failed to parse JSON from Bandcamp Tags:", e);
+                         selectors.bandcampResults.classList.remove('hidden');
+                         selectors.generatedBcMainPrompt.textContent = "Fehler beim Parsen der KI-Antwort.";
+                          // Clear other fields
+                    }
+                }
+            }
+
+             async function handleGenerateFromHardwax() {
+                const keywordsText = selectors.hardwaxKeywordsInput.value;
+                if (!keywordsText.trim()) { return; }
+
+                const systemPrompt = "You are an expert music connoisseur and prompt engineer, embodying the spirit of a Hard Wax employee. Analyze the user's keywords and generate a structured JSON prompt. The 'mainPrompt' must be a very short, punchy, and authentic Hard Wax-style record description. Also generate 'styleElements', 'bpm', 'keySignature', 'chordProgression', 'genre', and 'mood' that fit this description. Your response must be in a JSON object with these seven keys.";
+                const jsonText = await callGemini(selectors.generateFromHardwaxButton, systemPrompt, keywordsText, true);
+
+                if (jsonText) {
+                     try {
+                        const parsedJson = JSON.parse(jsonText);
+                        selectors.generatedHwMainPrompt.textContent = parsedJson.mainPrompt || '';
+                        selectors.generatedHwStyleElements.textContent = parsedJson.styleElements || '';
+                        selectors.generatedHwBpm.textContent = parsedJson.bpm || '';
+                        selectors.generatedHwKey.textContent = parsedJson.keySignature || '';
+                        selectors.generatedHwChords.textContent = parsedJson.chordProgression || '';
+                        selectors.generatedHwGenre.textContent = parsedJson.genre || '';
+                        selectors.generatedHwMood.textContent = parsedJson.mood || '';
+                        selectors.hardwaxResults.classList.remove('hidden');
+                      } catch(e) {
+                         console.error("Failed to parse JSON from Hardwax Style:", e);
+                         selectors.hardwaxResults.classList.remove('hidden');
+                         selectors.generatedHwMainPrompt.textContent = "Fehler beim Parsen der KI-Antwort.";
+                           // Clear other fields
+                    }
+                }
+            }
+
+            async function handleGenerateSongTitle() {
+                const promptText = selectors.completePrompt.textContent;
+                if (!promptText || promptText === 'Dein Prompt wird hier angezeigt...') return;
+
+                const wordCount = selectors.titleWordCountSlider.value;
+                const systemPrompt = `You are a creative music naming expert. Based on the provided music prompt, generate one compelling song title. The title must have exactly ${wordCount} words. Do not add quotation marks or any extra text.`;
+                const userQuery = promptText;
+
+                const generatedTitle = await callGemini(selectors.generateSongTitleButton, systemPrompt, userQuery);
+
+                if (generatedTitle) {
+                    selectors.generatedSongTitle.textContent = generatedTitle;
+                    selectors.generatedSongTitle.classList.remove('text-gray-400', 'italic');
+                    updateResetButtonVisibility(selectors.generatedSongTitle, selectors.songTitleResetButton, "Dein Songtitel...");
+                } else {
+                    selectors.generatedSongTitle.textContent = "Fehler bei der Generierung.";
+                     updateResetButtonVisibility(selectors.generatedSongTitle, selectors.songTitleResetButton, "Dein Songtitel...");
+                }
+            }
+            
+            // New Vibe Check function
+            async function handleVibeCheck() {
+                const promptText = selectors.completePrompt.textContent;
+                 if (!promptText || promptText === 'Dein Prompt wird hier angezeigt...') {
+                     selectors.vibeCheckResult.textContent = "Bitte erstelle zuerst einen Prompt.";
+                      updateResetButtonVisibility(selectors.vibeCheckResult, selectors.vibeCheckResetButton);
+                     return;
+                 }
+
+                const systemPrompt = "Act as a music expert. Briefly describe the overall musical vibe and feeling evoked by the following Suno prompt in 1-2 concise sentences.";
+                const userQuery = promptText;
+                selectors.vibeCheckResult.textContent = ""; // Clear previous result
+                const vibeDescription = await callGemini(selectors.vibeCheckButton, systemPrompt, userQuery);
+
+                if (vibeDescription) {
+                    selectors.vibeCheckResult.textContent = vibeDescription;
+                    selectors.vibeCheckResult.classList.remove('italic', 'text-gray-400');
+                } else {
+                    selectors.vibeCheckResult.textContent = "Fehler beim Vibe Check.";
+                     selectors.vibeCheckResult.classList.add('italic', 'text-gray-400');
+                }
+                updateResetButtonVisibility(selectors.vibeCheckResult, selectors.vibeCheckResetButton);
+            }
+
+
+            function handleSaveCustomExcludes() {
+                const newTerms = selectors.customExcludeStyles.value.split(',')
+                    .map(s => s.trim().toLowerCase()).filter(Boolean);
+                
+                if (newTerms.length === 0) return;
+
+                let addedCount = 0;
+                newTerms.forEach(term => {
+                    if (!data.excludeStyles.includes(term)) {
+                        data.excludeStyles.push(term);
+                        activeExcludeTags.add(term);
+                        addedCount++;
+                    }
+                });
+
+                if (addedCount > 0) {
+                    renderExcludeTags();
+                }
+                
+                selectors.customExcludeStyles.value = '';
+                updateFinalExcludeList();
+            }
+            
+            function handleSaveAsTemplate() {
+                const songTitle = selectors.generatedSongTitle.textContent;
+                let templateName = (songTitle && songTitle !== "Dein Songtitel...") 
+                    ? songTitle 
+                    : prompt("Gib einen Namen für das neue Template ein:");
+
+                if (!templateName || !templateName.trim()) {
+                    return; // User cancelled or entered empty name
+                }
+
+                const newTemplate = {
+                    name: templateName.trim(),
+                    genre: selectors.genreSelect.value,
+                    mood: selectors.moodSelect.value,
+                    prompt: selectors.mainPrompt.value,
+                    style: selectors.styleElements.value,
+                    chords: selectors.chordProgression.value
+                };
+
+                // Add BPM and Key to the template style string if not already present
+                 let styleText = selectors.styleElements.value.trim();
+                const bpmValue = selectors.bpmSlider.value;
+                const keySig = selectors.keySelect.value;
+
+                if (!/\b\d+\s*bpm\b/i.test(styleText)) {
+                     styleText = styleText ? `${styleText}, ${bpmValue} bpm` : `${bpmValue} bpm`;
+                }
+                 // Add key if it's not 'Open Key' and not already present
+                if (keySig && keySig !== "Open Key" && !styleText.toLowerCase().includes(keySig.toLowerCase().split(" - ")[0])) { 
+                     styleText = styleText ? `${styleText}, ${keySig}` : keySig;
+                }
+                newTemplate.style = styleText.replace(/^,\s*/, ''); // Clean leading comma if necessary
+
+
+                data.templates.push(newTemplate);
+                createTemplates(); // Re-render the templates tab
+
+                const saveButton = selectors.saveAsTemplateButton;
+                const originalText = saveButton.textContent;
+                saveButton.textContent = '✅ Gespeichert!';
+                setTimeout(() => { saveButton.textContent = originalText; }, 2000);
+                
+                document.querySelector('.tab-button[data-tab="templates"]').click();
+            }
+
+            // --- DATA MANAGEMENT FUNCTIONS ---
+            function handleExport() {
+                const jsonString = JSON.stringify(data, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'suno_designer_backup.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            function handleImportClick() {
+                selectors.importFileInput.click();
+            }
+
+            function handleFileImport(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        // Basic validation
+                        if (importedData.genres && importedData.moods && importedData.templates) {
+                             // Ensure all expected keys exist, even if empty, to avoid errors later
+                            data.genres = importedData.genres || [];
+                            data.moods = importedData.moods || [];
+                            data.keys = importedData.keys || initialData.keys; // Keep default keys or import
+                            data.tags = importedData.tags || initialData.tags; // Keep default structure tags etc.
+                            data.templates = importedData.templates || [];
+                            data.excludeStyles = importedData.excludeStyles || [];
+                            data.hardwaxTags = importedData.hardwaxTags || initialData.hardwaxTags; // Keep default HW tags
+
+                            reinitializeUI();
+                            alert("Daten erfolgreich importiert!");
+                        } else {
+                            throw new Error("Invalides Dateiformat. Wichtige Schlüssel fehlen.");
+                        }
+                    } catch (error) {
+                        alert(`Fehler beim Importieren der Datei: ${error.message}`);
+                    }
+                     event.target.value = null; // Reset file input
+                };
+                 reader.onerror = () => {
+                     alert("Fehler beim Lesen der Datei.");
+                     event.target.value = null; // Reset file input
+                 }
+                reader.readAsText(file);
+            }
+
+            function handleReset() {
+                if (confirm("Bist du sicher, dass du alle persönlichen Daten (gespeicherte Templates, Genres etc.) löschen und die App auf den Werkszustand zurücksetzen möchtest?")) {
+                    data = JSON.parse(JSON.stringify(initialData));
+                     activeTags.clear();
+                     activeExcludeTags.clear();
+                    reinitializeUI();
+                    alert("App wurde zurückgesetzt.");
+                }
+            }
+            
+            // --- Reset Button Logic ---
+             function handleResetClick(e) {
+                const targetId = e.target.dataset.target;
+                const targetElement = document.getElementById(targetId);
+                 if (!targetElement) return;
+
+                 if (targetId.endsWith('-results')) { // Reset KI result panels
+                     const panel = targetElement;
+                     panel.classList.add('hidden');
+                     // Clear all result divs within the panel
+                     panel.querySelectorAll('[id^="generated-"], [id^="refined-"]').forEach(div => div.textContent = '');
+                 } else if (targetId === 'generated-song-title') { // Reset Song Title
+                     targetElement.textContent = "Dein Songtitel...";
+                     targetElement.classList.add('italic', 'text-gray-400');
+                     updateResetButtonVisibility(targetElement, selectors.songTitleResetButton, "Dein Songtitel...");
+                 } else if (targetId === 'vibe-check-result') { // Reset Vibe Check
+                     targetElement.textContent = "";
+                      targetElement.classList.add('italic', 'text-gray-400'); // Re-add placeholder styles if needed
+                      updateResetButtonVisibility(targetElement, selectors.vibeCheckResetButton);
+                 }
+            }
+
+
+            // --- DATA EDITOR ---
+            function renderDataManagementView() {
+                const container = selectors.dataEditorContainer;
+                container.innerHTML = '';
+
+                const categories = [
+                    { title: 'Genres', key: 'genres' },
+                    { title: 'Stimmungen', key: 'moods' },
+                    { title: 'Ausschluss-Begriffe', key: 'excludeStyles' },
+                    { title: 'Vorlagen', key: 'templates' }
+                ];
+
+                categories.forEach(cat => {
+                    const catContainer = document.createElement('div');
+                    catContainer.className = 'bg-gray-800 p-4 rounded-lg flex flex-col h-full'; // Added flex, h-full
+                    
+                    const title = document.createElement('h4');
+                    title.className = 'font-bold text-teal-400 mb-3';
+                    title.textContent = cat.title;
+                    catContainer.appendChild(title);
+
+                    const list = document.createElement('div');
+                    list.className = 'space-y-2 flex-grow overflow-y-auto pr-2'; // Added flex-grow, overflow, padding-right
+                    list.dataset.category = cat.key;
+
+                    const items = data[cat.key];
+                    if (items && items.length > 0) {
+                        items.forEach((item, index) => {
+                            const itemEl = document.createElement('div');
+                            itemEl.className = 'flex items-center justify-between bg-gray-700 p-2 rounded cursor-grab';
+                            itemEl.draggable = true;
+                            itemEl.dataset.index = index;
+                            itemEl.dataset.value = typeof item === 'object' ? item.name : item; // Store value for drop logic
+
+                            const text = document.createElement('span');
+                            text.textContent = typeof item === 'object' ? item.name : item;
+                            text.className = 'truncate mr-2'; // Added margin-right
+                            itemEl.appendChild(text);
+
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.innerHTML = '&#x1F5D1;'; // Trash can icon
+                            deleteBtn.className = 'text-red-400 hover:text-red-300 px-2 flex-shrink-0'; // Added flex-shrink-0
+                            deleteBtn.onclick = (e) => {
+                                e.stopPropagation(); // Prevent drag start on button click
+                                if (confirm(`Sicher, dass du "${text.textContent}" löschen möchtest?`)) {
+                                    data[cat.key].splice(index, 1);
+                                    reinitializeUI();
+                                }
+                            };
+                            itemEl.appendChild(deleteBtn);
+                            list.appendChild(itemEl);
+                        });
+                    } else {
+                        list.textContent = 'Keine Einträge.';
+                        list.className = 'text-gray-500 italic flex-grow'; // Ensure it still grows
+                    }
+                    catContainer.appendChild(list);
+
+                    if (cat.key !== 'templates') { 
+                        const addFormContainer = document.createElement('div');
+                        addFormContainer.className = 'flex gap-2 mt-3 pt-3 border-t border-gray-700 flex-shrink-0'; // Added flex-shrink-0
+                        
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'form-control w-full p-2 text-sm';
+                        input.placeholder = 'Neuer Eintrag...';
+                        
+                        const addButton = document.createElement('button');
+                        addButton.textContent = '+';
+                        addButton.className = 'btn bg-teal-600 hover:bg-teal-500 font-bold px-4';
+                        
+                        const addItemHandler = () => {
+                             const value = input.value.trim();
+                             // Prevent adding duplicates (case-insensitive check for strings)
+                            const exists = data[cat.key].some(existingItem => 
+                                typeof existingItem === 'string' && existingItem.toLowerCase() === value.toLowerCase()
+                            );
+                            if (value && !exists) {
+                                data[cat.key].push(value);
+                                reinitializeUI(); // Re-render to show the new item and clear input
+                            } else if (exists) {
+                                alert(`"${value}" existiert bereits in dieser Liste.`);
+                                input.value = ''; 
+                            } else {
+                                input.value = ''; // Clear input if empty
+                            }
+                        };
+                        
+                        addButton.onclick = addItemHandler;
+                        
+                        input.onkeydown = (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addItemHandler();
+                            }
+                        };
+
+                        addFormContainer.appendChild(input);
+                        addFormContainer.appendChild(addButton);
+                        catContainer.appendChild(addFormContainer);
+                    }
+                    container.appendChild(catContainer);
+                });
+                
+                addDragAndDropListeners();
+            }
+            
+            function addDragAndDropListeners() {
+                const lists = selectors.dataEditorContainer.querySelectorAll('[data-category]');
+                lists.forEach(list => {
+                    list.addEventListener('dragstart', handleDragStart);
+                    list.addEventListener('dragover', handleDragOver);
+                     list.addEventListener('dragleave', handleDragLeave); // Added to remove highlighting
+                    list.addEventListener('drop', handleDrop);
+                    list.addEventListener('dragend', handleDragEnd);
+                });
+            }
+
+            function handleDragStart(e) {
+                // Only allow dragging on the item itself, not the delete button
+                if (e.target.tagName === 'BUTTON') {
+                    e.preventDefault();
+                    return;
+                }
+                draggedItemInfo = {
+                    element: e.target.closest('[draggable="true"]'),
+                    sourceCategory: e.target.closest('[data-category]').dataset.category,
+                    sourceIndex: parseInt(e.target.closest('[draggable="true"]').dataset.index),
+                     value: e.target.closest('[draggable="true"]').dataset.value // Get the actual value
+                };
+                setTimeout(() => {
+                    if(draggedItemInfo && draggedItemInfo.element) { // Check if element still exists
+                        draggedItemInfo.element.classList.add('dragging');
+                    }
+                }, 0);
+            }
+
+            function handleDragEnd(e) {
+                 if (draggedItemInfo && draggedItemInfo.element) {
+                   draggedItemInfo.element.classList.remove('dragging');
+                }
+                draggedItemInfo = null;
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            }
+
+             function handleDragLeave(e) {
+                 // Remove drag-over class when leaving a potential drop target element
+                const targetItem = e.target.closest('[draggable="true"]');
+                if (targetItem) {
+                    targetItem.classList.remove('drag-over');
+                }
+                 // Also remove if leaving the list container itself
+                 const listContainer = e.target.closest('[data-category]');
+                 if (listContainer) {
+                     // Maybe check if relatedTarget is outside the list container
+                 }
+            }
+
+
+            function handleDragOver(e) {
+                e.preventDefault();
+                const list = e.target.closest('[data-category]');
+                if (!list || !draggedItemInfo) return; // Ensure draggedItemInfo exists
+
+                // Prevent dropping templates into string lists and vice-versa
+                const targetCategory = list.dataset.category;
+                if ((draggedItemInfo.sourceCategory === 'templates' && targetCategory !== 'templates') ||
+                    (draggedItemInfo.sourceCategory !== 'templates' && targetCategory === 'templates')) {
+                    e.dataTransfer.dropEffect = 'none'; // Show a "not allowed" cursor
+                     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); // Clear existing highlights
+                    return;
+                }
+                e.dataTransfer.dropEffect = 'move';
+
+                const afterElement = getDragAfterElement(list, e.clientY);
+                
+                // Clear previous drag-over highlights
+                list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+                // Add highlight to the element we are hovering over or the list itself
+                 if (afterElement) {
+                     afterElement.classList.add('drag-over');
+                 } else {
+                     // Optionally highlight the list container if dropping at the end
+                     // list.classList.add('drag-over-end'); // Need CSS for this
+                 }
+            }
+
+            function getDragAfterElement(list, y) {
+                const draggableElements = [...list.querySelectorAll('[draggable="true"]:not(.dragging)')];
+
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); // Clean up highlight on drop
+                const dropZoneList = e.target.closest('[data-category]');
+                if (!dropZoneList || !draggedItemInfo || !draggedItemInfo.element) return;
+
+                const { sourceCategory, sourceIndex, value } = draggedItemInfo; // Use stored value
+                const targetCategory = dropZoneList.dataset.category;
+
+                // Final check for incompatible types
+                if ((sourceCategory === 'templates' && targetCategory !== 'templates') ||
+                    (sourceCategory !== 'templates' && targetCategory === 'templates')) {
+                    return; 
+                }
+    
+                 // Ensure source index is valid
+                if (sourceIndex < 0 || sourceIndex >= data[sourceCategory].length) {
+                    console.error("Invalid source index during drag and drop.");
+                    return;
+                }
+
+                 // Check for duplicates before dropping into a different category
+                 if (sourceCategory !== targetCategory) {
+                     const targetArray = data[targetCategory];
+                     const exists = targetArray.some(existingItem => 
+                         typeof existingItem === 'string' && typeof value === 'string' && existingItem.toLowerCase() === value.toLowerCase()
+                     );
+                     if (exists) {
+                         alert(`"${value}" existiert bereits in der Zielliste "${targetCategory}". Verschieben nicht möglich.`);
+                         return; // Prevent drop
+                     }
+                 }
+
+                // Remove item from source array
+                const [movedItem] = data[sourceCategory].splice(sourceIndex, 1);
+
+                // Add item to target array at the correct position
+                const afterElement = getDragAfterElement(dropZoneList, e.clientY);
+                const targetArray = data[targetCategory];
+                
+                if (afterElement === null) {
+                    targetArray.push(movedItem);
+                } else {
+                     // Find the actual index in the data array based on the value of the element we are dropping before
+                     const afterElementValue = afterElement.dataset.value;
+                     const toIndex = targetArray.findIndex(item => (typeof item === 'object' ? item.name : item) === afterElementValue);
+                     
+                    if (toIndex === -1) { // Fallback if element not found (shouldn't happen often)
+                        targetArray.push(movedItem);
+                    } else {
+                        targetArray.splice(toIndex, 0, movedItem);
+                    }
+                }
+                
+                // Re-render everything to reflect data changes & updated indices
+                reinitializeUI();
+            }
+
+
+            // --- MODAL LOGIC ---
+            function openModal(type) {
+                selectors.modalBody.innerHTML = '';
+                if (type === 'main') {
+                    currentExampleTarget = selectors.mainPrompt;
+                    selectors.modalTitle.textContent = 'Main Prompt Beispiele';
+                    promptDatabase.mainPrompt.forEach(item => {
+                        const div = document.createElement('div');
+                        div.textContent = item;
+                        div.className = 'p-3 hover:bg-gray-700 rounded-md cursor-pointer transition';
+                        div.onclick = () => insertExample(item, true);
+                        selectors.modalBody.appendChild(div);
+                    });
+                } else if (type === 'style') {
+                    currentExampleTarget = selectors.styleElements;
+                    selectors.modalTitle.textContent = 'Style Element Beispiele';
+                    for (const category in promptDatabase.styleElements) {
+                        const categoryTitle = document.createElement('h4');
+                        categoryTitle.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+                        categoryTitle.className = 'font-bold text-teal-500 mt-4 mb-2';
+                        selectors.modalBody.appendChild(categoryTitle);
+
+                        promptDatabase.styleElements[category].forEach(item => {
+                            const div = document.createElement('div');
+                            div.textContent = item;
+                            div.className = 'p-3 hover:bg-gray-700 rounded-md cursor-pointer transition';
+                            div.onclick = () => insertExample(item, false);
+                            selectors.modalBody.appendChild(div);
+                        });
+                    }
+                }
+                selectors.exampleModal.classList.remove('hidden');
+            }
+
+            function closeModal() {
+                selectors.exampleModal.classList.add('hidden');
+            }
+
+            function insertExample(text, replace) {
+                if (replace) {
+                    currentExampleTarget.value = text;
+                } else {
+                    currentExampleTarget.value = currentExampleTarget.value ? `${currentExampleTarget.value}, ${text}` : text;
+                }
+                closeModal();
+                updateFinalPrompt();
+            }
+             
+             // --- Command Palette Logic ---
+            function openCommandPalette() {
+                commandPaletteOpen = true;
+                selectors.commandPaletteOverlay.classList.remove('hidden');
+                selectors.commandInput.value = '';
+                renderCommands(commands); // Show all commands initially
+                selectors.commandInput.focus();
+                selectedCommandIndex = -1; // Reset selection
+            }
+
+            function closeCommandPalette() {
+                commandPaletteOpen = false;
+                selectors.commandPaletteOverlay.classList.add('hidden');
+            }
+
+            function renderCommands(commandsToRender) {
+                selectors.commandList.innerHTML = '';
+                commandsToRender.forEach((command, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = command.name;
+                    li.className = 'command-item p-2 hover:bg-gray-600 rounded cursor-pointer';
+                    li.dataset.index = index; // Store original index for execution
+                    li.onclick = () => executeCommand(command.action);
+                    selectors.commandList.appendChild(li);
+                });
+                 updateCommandSelection();
+            }
+            
+             function updateCommandSelection() {
+                 const items = selectors.commandList.querySelectorAll('.command-item');
+                 items.forEach((item, index) => {
+                     if (index === selectedCommandIndex) {
+                         item.classList.add('selected');
+                         item.scrollIntoView({ block: 'nearest' });
+                     } else {
+                         item.classList.remove('selected');
+                     }
+                 });
+             }
+
+
+            function filterCommands() {
+                const searchTerm = selectors.commandInput.value.toLowerCase();
+                const filteredCommands = commands.filter(command => command.name.toLowerCase().includes(searchTerm));
+                renderCommands(filteredCommands);
+                 selectedCommandIndex = filteredCommands.length > 0 ? 0 : -1; // Select first result or none
+                 updateCommandSelection();
+            }
+
+             function executeCommand(action) {
+                 if (action && typeof action === 'function') {
+                    action();
+                 }
+                 closeCommandPalette();
+             }
+             
+             function handleCommandPaletteKeydown(e) {
+                 if (!commandPaletteOpen) return;
+                 const items = selectors.commandList.querySelectorAll('.command-item');
+                 const visibleCommands = commands.filter(command => command.name.toLowerCase().includes(selectors.commandInput.value.toLowerCase()));
+
+
+                 if (e.key === 'ArrowDown') {
+                     e.preventDefault();
+                     selectedCommandIndex = Math.min(selectedCommandIndex + 1, items.length - 1);
+                     updateCommandSelection();
+                 } else if (e.key === 'ArrowUp') {
+                     e.preventDefault();
+                     selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
+                     updateCommandSelection();
+                 } else if (e.key === 'Enter') {
+                     e.preventDefault();
+                     if (selectedCommandIndex >= 0 && selectedCommandIndex < items.length) {
+                         const originalIndex = parseInt(items[selectedCommandIndex].dataset.index);
+                         // Find the command in the *filtered* list that corresponds to the selected item
+                         const selectedVisibleCommand = visibleCommands[selectedCommandIndex]; 
+                         if(selectedVisibleCommand) {
+                            executeCommand(selectedVisibleCommand.action);
+                         }
+                     }
+                 } else if (e.key === 'Escape') {
+                     closeCommandPalette();
+                 }
+             }
+
+
+
+            // --- SETUP ---
+            reinitializeUI();
+            document.querySelector('.tab-button[data-tab="prompt-builder"]').classList.add('active');
+            document.getElementById('prompt-builder').classList.remove('hidden');
+
+            // --- EVENT LISTENERS ---
+            document.querySelector('.tab-nav').addEventListener('click', handleTabClick);
+            selectors.copyComplete.addEventListener('click', (e) => copyToClipboard(selectors.completePrompt.textContent, e.currentTarget));
+            selectors.copyExcludeList.addEventListener('click', (e) => copyToClipboard(selectors.finalExcludeList.textContent, e.currentTarget));
+            
+            selectors.generateSuno.addEventListener('click', (e) => {
+                const button = e.currentTarget;
+                const promptText = selectors.completePrompt.textContent;
+                if (!promptText || promptText === 'Dein Prompt wird hier angezeigt...') {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '❌ Prompt ist leer!';
+                    setTimeout(() => { button.innerHTML = originalText; }, 2000);
+                    return;
+                }
+                copyToClipboard(promptText, button);
+                setTimeout(() => {
+                    window.open('https://app.suno.ai/create/', '_blank');
+                }, 300);
+            });
+
+            selectors.randomPrompt.addEventListener('click', randomize);
+            selectors.analyseButton.addEventListener('click', analyzePrompt);
+            selectors.geminiSuggestStyles.addEventListener('click', handleSuggestStyles);
+            selectors.geminiSuggestChords.addEventListener('click', handleSuggestChords);
+            selectors.generateInspirationButton.addEventListener('click', handleGenerateInspiration);
+            selectors.generateFromTagsButton.addEventListener('click', handleGenerateFromTags);
+            selectors.generateFromHardwaxButton.addEventListener('click', handleGenerateFromHardwax);
+            selectors.saveCustomExclude.addEventListener('click', handleSaveCustomExcludes);
+            selectors.generateSongTitleButton.addEventListener('click', handleGenerateSongTitle);
+             selectors.vibeCheckButton.addEventListener('click', handleVibeCheck); // Add listener for vibe check
+            selectors.saveAsTemplateButton.addEventListener('click', handleSaveAsTemplate);
+            selectors.hardwaxTagsContainer.addEventListener('click', handleHardwaxTagClick);
+            selectors.exportDataButton.addEventListener('click', handleExport);
+            selectors.importDataButton.addEventListener('click', handleImportClick);
+            selectors.importFileInput.addEventListener('change', handleFileImport);
+            selectors.resetAppButton.addEventListener('click', handleReset);
+            selectors.refinePromptButton.addEventListener('click', handleRefinePrompt); // Listener for the refiner
+             // Add listeners for reset buttons using event delegation on a common ancestor (main or document body)
+             document.addEventListener('click', function(event) {
+                 if (event.target.classList.contains('reset-btn')) {
+                     handleResetClick(event);
+                 }
+             });
+              // Command Palette Listeners
+             document.addEventListener('keydown', (e) => {
+                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                     e.preventDefault();
+                     openCommandPalette();
+                 }
+                 handleCommandPaletteKeydown(e); // Handle nav/enter/esc within palette
+             });
+             selectors.commandInput.addEventListener('input', filterCommands);
+             selectors.commandPaletteOverlay.addEventListener('click', (e) => {
+                 if (e.target === selectors.commandPaletteOverlay) { // Close if clicking outside the modal content
+                     closeCommandPalette();
+                 }
+             });
+
+
+
+            function applyGeneratedPrompt(main, style, chords, bpm, key, genre, mood) {
+                 // Update global data only if the new genre/mood isn't already present
+                let genreAdded = false;
+                let moodAdded = false;
+                if (genre && data.genres && !data.genres.includes(genre)) {
+                    data.genres.push(genre);
+                    genreAdded = true;
+                }
+                if (mood && data.moods && !data.moods.includes(mood)) {
+                    data.moods.push(mood);
+                    moodAdded = true;
+                }
+                 // Repopulate selects only if new data was added
+                if(genreAdded) populateSelect(selectors.genreSelect, data.genres, "Select Genre...");
+                if(moodAdded) populateSelect(selectors.moodSelect, data.moods, "Select Mood...");
+
+                selectors.mainPrompt.value = main || ''; // Ensure empty string if undefined/null
+                selectors.styleElements.value = style || '';
+                selectors.chordProgression.value = chords || '';
+                const bpmText = bpm ? bpm.match(/(\d+)/) : null; // Check if bpm exists before matching
+                 if (bpmText && selectors.bpmSlider && selectors.bpmValue) { 
+                     // Ensure bpm is within slider range
+                     const bpmNum = parseInt(bpmText[1]);
+                     if(bpmNum >= 60 && bpmNum <= 200) {
+                        selectors.bpmSlider.value = bpmNum; 
+                        selectors.bpmValue.textContent = bpmNum; 
+                     } else {
+                         console.warn(`Generated BPM ${bpmNum} out of range (60-200). Resetting to default.`);
+                         selectors.bpmSlider.value = 120;
+                         selectors.bpmValue.textContent = 120;
+                     }
+                 } else if (selectors.bpmSlider) { // Reset to default if no BPM found
+                     selectors.bpmSlider.value = 120;
+                     selectors.bpmValue.textContent = 120;
+                 }
+                // Check if the exact key exists, otherwise try finding a partial match (e.g., just "A Minor")
+                 let foundKey = data.keys.find(k => k === key);
+                 if (!foundKey && key) {
+                     foundKey = data.keys.find(k => k.toLowerCase().includes(key.toLowerCase()));
+                 }
+                if(foundKey) { selectors.keySelect.value = foundKey; } else { selectors.keySelect.value = ''; } 
+                
+                if(genre && data.genres.includes(genre)) { selectors.genreSelect.value = genre; } else { selectors.genreSelect.value = ''; } // Reset if genre invalid
+                if(mood && data.moods.includes(mood)) { selectors.moodSelect.value = mood; } else { selectors.moodSelect.value = ''; } // Reset if mood invalid
+
+                document.querySelector('.tab-button[data-tab="prompt-builder"]').click();
+                updateFinalPrompt();
+            }
+
+            selectors.applyInspirationButton.addEventListener('click', () => {
+                applyGeneratedPrompt(
+                    selectors.generatedMainPrompt.textContent,
+                    selectors.generatedStyleElements.textContent,
+                    selectors.generatedChords.textContent,
+                    selectors.generatedBpm.textContent,
+                    selectors.generatedKey.textContent,
+                    selectors.generatedGenre.textContent,
+                    selectors.generatedMood.textContent
+                );
+            });
+
+             selectors.applyBandcampButton.addEventListener('click', () => {
+                applyGeneratedPrompt(
+                    selectors.generatedBcMainPrompt.textContent,
+                    selectors.generatedBcStyleElements.textContent,
+                    selectors.generatedBcChords.textContent,
+                    selectors.generatedBcBpm.textContent,
+                    selectors.generatedBcKey.textContent,
+                    selectors.generatedBcGenre.textContent,
+                    selectors.generatedBcMood.textContent
+                );
+            });
+
+            selectors.applyHardwaxButton.addEventListener('click', () => {
+                applyGeneratedPrompt(
+                    selectors.generatedHwMainPrompt.textContent,
+                    selectors.generatedHwStyleElements.textContent,
+                    selectors.generatedHwChords.textContent,
+                    selectors.generatedHwBpm.textContent,
+                    selectors.generatedHwKey.textContent,
+                    selectors.generatedHwGenre.textContent,
+                    selectors.generatedHwMood.textContent
+                );
+            });
+            
+             // Apply refined prompt
+            selectors.applyRefinedButton.addEventListener('click', () => {
+                 applyGeneratedPrompt(
+                    selectors.refinedMainPrompt.textContent,
+                    selectors.refinedStyleElements.textContent,
+                    selectors.refinedChords.textContent,
+                    selectors.refinedBpm.textContent,
+                    selectors.refinedKey.textContent,
+                    selectors.refinedGenre.textContent,
+                    selectors.refinedMood.textContent
+                );
+            });
+
+
+            const inputsToWatch = [selectors.genreSelect, selectors.moodSelect, selectors.keySelect, selectors.mainPrompt, selectors.styleElements, selectors.chordProgression];
+            inputsToWatch.forEach(el => el.addEventListener('input', updateFinalPrompt));
+
+            selectors.bpmSlider.addEventListener('input', (e) => { selectors.bpmValue.textContent = e.target.value; updateFinalPrompt(); });
+            selectors.titleWordCountSlider.addEventListener('input', e => { selectors.titleWordCountValue.textContent = e.target.value; });
+            
+            selectors.defaultExcludeTags.addEventListener('click', handleExcludeTagClick);
+            selectors.customExcludeStyles.addEventListener('input', updateFinalExcludeList);
+
+            selectors.loadMainExamples.addEventListener('click', () => openModal('main'));
+            selectors.loadStyleExamples.addEventListener('click', () => openModal('style'));
+            selectors.closeModal.addEventListener('click', closeModal);
+            selectors.exampleModal.addEventListener('click', (e) => { if (e.target === selectors.exampleModal) closeModal(); });
+            
+            updateFinalPrompt();
+            updateFinalExcludeList();
+        });
+    </script>
+</body>
+</html>
+
